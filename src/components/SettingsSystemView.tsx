@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { ShieldCheckIcon, SparklesIcon, BrainIcon } from './Icons';
+import { CustomShortcutsManager } from './CustomShortcutsManager';
 
 interface ReadinessData {
   ready: boolean;
@@ -614,6 +615,9 @@ export function SettingsSystemView() {
           <span style={{ color: '#a5b4fc', fontSize: '0.72rem' }}>Ollama runs natively on port 11434</span>
         </div>
       </div>
+
+      {/* Custom Voice Shortcuts & Quick Links Section */}
+      <CustomShortcutsManager />
 
       {/* Backups Section */}
       <div>

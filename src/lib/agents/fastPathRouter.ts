@@ -2,6 +2,7 @@ import { exec } from 'child_process';
 import { promisify } from 'util';
 import path from 'path';
 import { OrchestrationStep } from '@/types/orchestrator';
+import { matchCustomShortcut } from '../shortcuts';
 
 const execAsync = promisify(exec);
 
@@ -351,6 +352,46 @@ export async function tryFastPathRoute(userPrompt: string): Promise<FastPathMatc
 
   if (!normalized) {
     return { matched: false };
+  }
+
+  // ---------------------------------------------------------------------------
+  // 0. User-Defined Custom Shortcuts & Voice Macros (e.g. "Nila", custom URLs/apps)
+  // ---------------------------------------------------------------------------
+  const customShortcut = matchCustomShortcut(normalized) || matchCustomShortcut(clean);
+  if (customShortcut) {
+    let pcArgs: string[] = [];
+    if (customShortcut.action === 'open_url') {
+      pcArgs = ['app', 'launch', customShortcut.target];
+      if (customShortcut.browser) {
+        pcArgs.push('--browser', customShortcut.browser);
+      }
+    } else if (customShortcut.action === 'launch_app') {
+      pcArgs = ['app', 'launch', customShortcut.target];
+    }
+
+    const res = await runPcController(pcArgs);
+    const answer = customShortcut.response || `Opened **${customShortcut.name}** for you.`;
+    return {
+      matched: true,
+      actionName: `custom_shortcut_${customShortcut.id}`,
+      answer,
+      steps: [
+        {
+          type: 'reasoning',
+          step: 'intent_resolution',
+          status: 'completed',
+          title: `Custom Voice Shortcut: ${customShortcut.name}`,
+          details: `Matched trigger against custom shortcut '${customShortcut.name}' -> ${customShortcut.target}`,
+        },
+        {
+          type: 'tool_result',
+          step: 'tool_execution',
+          status: res.success ? 'completed' : 'failed',
+          title: `Executed ${customShortcut.name}`,
+          data: res,
+        },
+      ],
+    };
   }
 
   // ---------------------------------------------------------------------------

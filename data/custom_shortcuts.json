@@ -1,0 +1,21 @@
+[
+  {
+    "id": "nila-instagram",
+    "name": "Nila (Instagram Messages)",
+    "triggers": [
+      "nila",
+      "open nila",
+      "message nila",
+      "chat with nila",
+      "text nila",
+      "dm nila",
+      "instagram nila"
+    ],
+    "action": "open_url",
+    "target": "https://www.instagram.com/direct/t/17849327553274667/",
+    "browser": "edge",
+    "response": "Opening Instagram messages with Nila in Microsoft Edge.",
+    "enabled": true,
+    "createdAt": "2026-09-12T02:25:00.000Z"
+  }
+]
