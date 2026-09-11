@@ -1,6 +1,6 @@
 """
 Auren Desktop System Tray Application & Global Hotkey Listener
-Provides a persistent tray icon in the Windows notification area,
+Provides a persistent, single-instance tray icon in the Windows notification area,
 global hotkey (Ctrl+Alt+J) registration, and single-instance window toggle.
 """
 import os
@@ -30,30 +30,41 @@ MOD_ALT = 0x0001
 MOD_CONTROL = 0x0002
 VK_J = 0x4A
 HOTKEY_ID_SUMMON = 101
+ERROR_ALREADY_EXISTS = 183
+
+def ensure_single_instance():
+    """Ensures only one instance of the tray app runs per user session."""
+    mutex_name = "Local\\Auren_Tray_App_Mutex_v2"
+    h_mutex = kernel32.CreateMutexW(None, False, mutex_name)
+    last_err = kernel32.GetLastError()
+    if last_err == ERROR_ALREADY_EXISTS:
+        # Already running: toggle window and exit this duplicate process
+        toggle_auren()
+        sys.exit(0)
+    return h_mutex
 
 def create_auren_icon(size=64):
-    """Generates a sleek, high-resolution Auren orb icon with a glowing 'A'."""
+    """
+    Generates an ultra-vibrant, high-contrast Auren orb icon designed
+    specifically for visibility on Windows dark and light taskbars.
+    """
     img = Image.new("RGBA", (size, size), (0, 0, 0, 0))
     draw = ImageDraw.Draw(img)
 
-    # Outer glow
-    for r in range(size // 2, size // 2 - 6, -1):
-        alpha = int(40 * (size // 2 - r) / 6)
-        draw.ellipse([size // 2 - r, size // 2 - r, size // 2 + r, size // 2 + r], fill=(139, 92, 246, alpha))
+    # 1. Bold neon cyan outer border ring (width 4px)
+    draw.ellipse([2, 2, size - 3, size - 3], fill=(15, 23, 42, 255), outline=(6, 182, 212, 255), width=4)
 
-    # Gradient circle background
-    margin = 4
-    draw.ellipse([margin, margin, size - margin, size - margin], fill=(15, 23, 42, 255), outline=(6, 182, 212, 255), width=2)
-    draw.ellipse([margin + 4, margin + 4, size - margin - 4, size - margin - 4], fill=(30, 27, 75, 255))
+    # 2. Electric purple glow ring
+    draw.ellipse([8, 8, size - 9, size - 9], fill=(88, 28, 135, 255), outline=(168, 85, 247, 255), width=2)
 
-    # Center Cyan Orb
-    center_r = 14
-    c_x, c_y = size // 2, size // 2
-    draw.ellipse([c_x - center_r, c_y - center_r, c_x + center_r, c_y + center_r], fill=(6, 182, 212, 220), outline=(255, 255, 255, 255), width=1)
+    # 3. Bright cyan center core
+    center_r = size // 4
+    c = size // 2
+    draw.ellipse([c - center_r, c - center_r, c + center_r, c + center_r], fill=(6, 182, 212, 255))
 
-    # Core white glow
-    core_r = 6
-    draw.ellipse([c_x - core_r, c_y - core_r, c_x + core_r, c_y + core_r], fill=(255, 255, 255, 255))
+    # 4. Pure white glowing nucleus
+    nuc_r = size // 8
+    draw.ellipse([c - nuc_r, c - nuc_r, c + nuc_r, c + nuc_r], fill=(255, 255, 255, 255))
 
     return img
 
@@ -66,15 +77,11 @@ class GlobalHotkeyThread(threading.Thread):
 
     def run(self):
         attach_to_user_desktop()
-        # Register Ctrl+Alt+J
-        success = user32.RegisterHotKey(None, HOTKEY_ID_SUMMON, MOD_CONTROL | MOD_ALT, VK_J)
-        if not success:
-            print("[Auren Tray] Note: Ctrl+Alt+J already registered by system or shortcut.")
+        user32.RegisterHotKey(None, HOTKEY_ID_SUMMON, MOD_CONTROL | MOD_ALT, VK_J)
 
         msg = wintypes.MSG()
         while self.running:
-            # Check for messages with timeout
-            if user32.PeekMessageW(ctypes.byref(msg), None, 0, 0, 1): # PM_REMOVE
+            if user32.PeekMessageW(ctypes.byref(msg), None, 0, 0, 1):  # PM_REMOVE
                 if msg.message == 0x0312:  # WM_HOTKEY
                     if msg.wParam == HOTKEY_ID_SUMMON:
                         try:
@@ -84,7 +91,7 @@ class GlobalHotkeyThread(threading.Thread):
                 user32.TranslateMessage(ctypes.byref(msg))
                 user32.DispatchMessageW(ctypes.byref(msg))
             else:
-                time.sleep(0.03)
+                time.sleep(0.02)
 
         user32.UnregisterHotKey(None, HOTKEY_ID_SUMMON)
 
@@ -107,6 +114,7 @@ def on_exit(icon, item):
 
 def main():
     attach_to_user_desktop()
+    _mutex = ensure_single_instance()
 
     # Start native hotkey background listener
     hotkey_thread = GlobalHotkeyThread(on_trigger=toggle_auren)
@@ -124,7 +132,19 @@ def main():
     )
 
     icon = pystray.Icon("auren_ai", icon_img, "Auren AI Companion", menu)
-    icon.run()
+
+    def on_setup(ico):
+        ico.visible = True
+        time.sleep(0.3)
+        try:
+            ico.notify(
+                "Auren is active in your system tray! Click the ^ arrow if hidden, or press Ctrl+Alt+J anytime.",
+                "Auren AI Active"
+            )
+        except Exception:
+            pass
+
+    icon.run(setup=on_setup)
 
 if __name__ == "__main__":
     main()

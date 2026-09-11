@@ -81,21 +81,42 @@ def bring_window_to_front(hwnd):
         user32.SetForegroundWindow(hwnd)
 
 def launch_auren():
-    """Launches Auren Voice Studio in standalone app mode with autostart & wakeword enabled."""
+    """Launches Auren Voice Studio in an isolated standalone desktop app window."""
     url = "http://localhost:3000/voice?autostart=true&wakeword=true"
-    # 1. Try Microsoft Edge App Mode
+    profile_dir = os.path.expandvars(r"%LOCALAPPDATA%\AurenAI\Profile")
     try:
-        p = subprocess.Popen(f'msedge --app="{url}"', shell=True)
-        return True
+        os.makedirs(profile_dir, exist_ok=True)
     except Exception:
         pass
-    # 2. Try Google Chrome App Mode
-    try:
-        p = subprocess.Popen(f'chrome --app="{url}"', shell=True)
-        return True
-    except Exception:
-        pass
-    # 3. Fallback to default browser
+    
+    chrome_paths = [
+        r"C:\Program Files\Google\Chrome\Application\chrome.exe",
+        r"C:\Program Files (x86)\Google\Chrome\Application\chrome.exe",
+        os.path.expandvars(r"%LOCALAPPDATA%\Google\Chrome\Application\chrome.exe")
+    ]
+    edge_paths = [
+        r"C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe",
+        r"C:\Program Files\Microsoft\Edge\Application\msedge.exe",
+        os.path.expandvars(r"%LOCALAPPDATA%\Microsoft\Edge\Application\msedge.exe")
+    ]
+
+    for p in chrome_paths:
+        if os.path.isfile(p):
+            try:
+                subprocess.Popen(f'"{p}" --app="{url}"', shell=True)
+                return True
+            except Exception:
+                pass
+
+    for p in edge_paths:
+        if os.path.isfile(p):
+            try:
+                subprocess.Popen(f'"{p}" --user-data-dir="{profile_dir}" --app="{url}"', shell=True)
+                return True
+            except Exception:
+                pass
+
+    # Fallback to default browser
     try:
         os.startfile(url)
         return True
