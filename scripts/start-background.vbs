@@ -16,9 +16,9 @@ projectDir = fso.GetParentFolderName(scriptDir)
 ' Set current working directory to project root
 WshShell.CurrentDirectory = projectDir
 
-' Command to start production server in background (or dev if preferred)
+' Command to start production server in background with explicit PATH
 ' Window style 0 hides the command prompt completely
-cmd = "cmd.exe /c npm start"
+cmd = "cmd.exe /c set ""PATH=C:\Program Files\nodejs;%PATH%"" && cd /d """ & projectDir & """ && npm.cmd start"
 
 WshShell.Run cmd, 0, False
 
