@@ -37,6 +37,13 @@ export function getAvailableProviders(): ProviderInfo[] {
       configured: Boolean(process.env.OLLAMA_ENABLED === 'true' || process.env.OLLAMA_BASE_URL),
     },
     {
+      id: 'local_fastpath',
+      name: 'Offline Fast-Path (0 Tokens, Native Python)',
+      defaultModel: 'windows-native-pc-controller',
+      contextWindow: 'Instantaneous OS Control',
+      configured: true,
+    },
+    {
       id: 'mock',
       name: 'Farhan AI Mock (Offline Mode)',
       defaultModel: 'deterministic-career-engine',
@@ -89,6 +96,7 @@ export function createProvider(id: ProviderId): LLMProvider {
         defaultModel: process.env.OLLAMA_MODEL || 'llama3.2',
       });
     }
+    case 'local_fastpath':
     case 'mock':
     default:
       return new MockProvider();

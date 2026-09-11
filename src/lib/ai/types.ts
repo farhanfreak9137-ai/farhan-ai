@@ -48,7 +48,7 @@ export interface ChatOptions {
   stream?: boolean;
 }
 
-export type ProviderId = 'gemini' | 'openai' | 'groq' | 'ollama' | 'mock';
+export type ProviderId = 'gemini' | 'openai' | 'groq' | 'ollama' | 'mock' | 'local_fastpath';
 
 export interface ProviderInfo {
   id: ProviderId;

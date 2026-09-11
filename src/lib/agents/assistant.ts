@@ -4,6 +4,7 @@ import { AgentRegistry, defaultRegistry } from './registry';
 import { HumanApprovalPayload } from './types';
 import { resolveProvider } from '../ai/factory';
 import { buildSystemPromptAsync } from '../ai/prompts';
+import { tryFastPathRoute } from './fastPathRouter';
 
 export interface AssistantResponse {
   answer: string;
@@ -57,6 +58,23 @@ export class CentralAssistant {
       typeof messages === 'string'
         ? [{ role: 'user', content: messages }]
         : messages;
+
+    // 0-Token Offline Fast-Path Interceptor:
+    // Directly executes OS and local computer commands in <50ms without invoking LLM APIs
+    if (!options.isHumanApproved) {
+      const lastUserMsg = [...normalizedMessages].reverse().find((m) => m.role === 'user')?.content;
+      if (lastUserMsg && typeof lastUserMsg === 'string') {
+        const fastResult = await tryFastPathRoute(lastUserMsg);
+        if (fastResult.matched) {
+          return {
+            answer: fastResult.answer || 'Action completed successfully.',
+            steps: fastResult.steps || [],
+            agentUsed: 'System Agent (Offline Fast-Path)',
+            providerUsed: 'local_fastpath',
+          };
+        }
+      }
+    }
 
     let activeMessages: ChatMessage[] = [
       { role: 'system', content: systemPrompt },

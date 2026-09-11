@@ -6,6 +6,7 @@ import * as path from 'path';
 import * as fs from 'fs/promises';
 import { exec, spawn } from 'child_process';
 import { promisify } from 'util';
+import { runPcController } from './fastPathRouter';
 
 const execAsync = promisify(exec);
 
@@ -503,6 +504,16 @@ const systemDiagnosticsTool: AgentTool = {
       diskDrives = [{ name: 'C:', freeGb: 'Available', usedGb: 'N/A' }];
     }
 
+    let pyData: any = null;
+    try {
+      const pyStatus = await runPcController(['status']);
+      if (pyStatus.success && pyStatus.data) {
+        pyData = pyStatus.data;
+      }
+    } catch {
+      // Best effort Python metrics
+    }
+
     return {
       toolName: 'system_diagnostics',
       success: true,
@@ -522,14 +533,115 @@ const systemDiagnosticsTool: AgentTool = {
           cores: cpuCores,
         },
         memory: {
-          totalGb: (totalMemBytes / (1024 * 1024 * 1024)).toFixed(1) + ' GB',
-          freeGb: (freeMemBytes / (1024 * 1024 * 1024)).toFixed(1) + ' GB',
-          usedGb: (usedMemBytes / (1024 * 1024 * 1024)).toFixed(1) + ' GB',
-          usagePercent: `${memUsagePct}%`,
+          totalGb: pyData?.ram?.totalGb ? `${pyData.ram.totalGb} GB` : (totalMemBytes / (1024 * 1024 * 1024)).toFixed(1) + ' GB',
+          freeGb: pyData?.ram?.freeGb ? `${pyData.ram.freeGb} GB` : (freeMemBytes / (1024 * 1024 * 1024)).toFixed(1) + ' GB',
+          usedGb: pyData?.ram?.usedGb ? `${pyData.ram.usedGb} GB` : (usedMemBytes / (1024 * 1024 * 1024)).toFixed(1) + ' GB',
+          usagePercent: pyData?.ram?.percentUsed ? `${pyData.ram.percentUsed}%` : `${memUsagePct}%`,
         },
         diskDrives,
+        offlineMetrics: pyData,
         timestamp: new Date().toISOString(),
       },
+    };
+
+  },
+};
+
+// -----------------------------------------------------------------------------
+// Tool 5: pc_window_control
+// -----------------------------------------------------------------------------
+const pcWindowControlTool: AgentTool = {
+  name: 'pc_window_control',
+  description:
+    'Controls Windows desktop and application windows: minimize all windows to show desktop, or lock the workstation.',
+  agentId: 'system_agent',
+  inputSchema: z.object({
+    action: z
+      .enum(['minimize_all', 'lock'])
+      .describe("Window action: 'minimize_all' to show desktop, or 'lock' to lock PC"),
+  }),
+  execute: async (input: { action: 'minimize_all' | 'lock' }) => {
+    const res = await runPcController(['window', input.action]);
+    return {
+      toolName: 'pc_window_control',
+      success: res.success,
+      data: res,
+    };
+  },
+};
+
+// -----------------------------------------------------------------------------
+// Tool 6: audio_media_control
+// -----------------------------------------------------------------------------
+const audioMediaControlTool: AgentTool = {
+  name: 'audio_media_control',
+  description:
+    'Controls Windows master volume (mute, unmute, volume up/down) and media playback (play/pause, next track, previous track).',
+  agentId: 'system_agent',
+  inputSchema: z.object({
+    category: z.enum(['volume', 'media']).describe('Category of control'),
+    action: z
+      .enum(['up', 'down', 'mute', 'play', 'pause', 'play_pause', 'next', 'prev', 'stop'])
+      .describe('Action to perform'),
+    steps: z.number().optional().default(2).describe('Steps for volume up/down (each step is 2%)'),
+  }),
+  execute: async (input: { category: 'volume' | 'media'; action: string; steps?: number }) => {
+    let res;
+    if (input.category === 'volume') {
+      res = await runPcController(['volume', input.action, '--steps', String(input.steps || 2)]);
+    } else {
+      res = await runPcController(['media', input.action]);
+    }
+    return {
+      toolName: 'audio_media_control',
+      success: res.success,
+      data: res,
+    };
+  },
+};
+
+// -----------------------------------------------------------------------------
+// Tool 7: process_management
+// -----------------------------------------------------------------------------
+const processManagementTool: AgentTool = {
+  name: 'process_management',
+  description:
+    'Lists top memory-consuming processes or terminates a process by name or PID.',
+  agentId: 'system_agent',
+  inputSchema: z.object({
+    action: z.enum(['list', 'kill']).describe("Action: 'list' to view top processes, 'kill' to terminate"),
+    target: z.string().optional().describe('Process name (e.g. notepad.exe) or PID to terminate'),
+    limit: z.number().optional().default(15).describe('Max processes to return when listing'),
+  }),
+  execute: async (input: { action: 'list' | 'kill'; target?: string; limit?: number }) => {
+    if (input.action === 'list') {
+      const res = await runPcController(['process', 'list', '--limit', String(input.limit || 15)]);
+      return { toolName: 'process_management', success: res.success, data: res.data };
+    } else {
+      if (!input.target) {
+        return { toolName: 'process_management', success: false, error: 'target process is required for kill' };
+      }
+      const res = await runPcController(['process', 'kill', '--target', input.target, '--force']);
+      return { toolName: 'process_management', success: res.success, data: res };
+    }
+  },
+};
+
+// -----------------------------------------------------------------------------
+// Tool 8: screen_capture
+// -----------------------------------------------------------------------------
+const screenCaptureTool: AgentTool = {
+  name: 'screen_capture',
+  description:
+    'Takes a screenshot of the Windows desktop and saves it locally in data/screenshots.',
+  agentId: 'system_agent',
+  inputSchema: z.object({}),
+  execute: async () => {
+    const res = await runPcController(['screenshot']);
+    return {
+      toolName: 'screen_capture',
+      success: res.success,
+      data: res,
     };
   },
 };
@@ -541,18 +653,27 @@ export const SystemAgent: Agent = {
   id: 'system_agent',
   name: 'System Agent',
   description:
-    'Full Windows operating system control: file management (move, copy, delete), command line execution (winget, powershell, cmd), application launching, and hardware diagnostics.',
+    'Full Windows operating system control: offline file management, process termination, window/desktop control, audio/media keys, screen capture, CLI commands, and real-time hardware diagnostics.',
   capabilities: [
     'command_execution',
     'file_manipulation',
     'application_launching',
     'system_diagnostics',
     'software_installation',
+    'window_control',
+    'audio_media_control',
+    'process_management',
+    'screen_capture',
   ],
   tools: [
     executeCommandTool,
     fileOperationsTool,
     launchApplicationTool,
     systemDiagnosticsTool,
+    pcWindowControlTool,
+    audioMediaControlTool,
+    processManagementTool,
+    screenCaptureTool,
   ],
 };
+
