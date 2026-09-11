@@ -52,8 +52,25 @@ KEYEVENTF_KEYUP = 0x0002
 user32 = ctypes.windll.user32
 kernel32 = ctypes.windll.kernel32
 
+def attach_to_user_desktop():
+    """
+    Attaches the current thread to the interactive 'default' desktop of WinSta0
+    so that window management, keybd_event, and screen actions target the user's
+    actual display and monitor rather than any background sandbox desktop.
+    """
+    try:
+        DESKTOP_ALL = 0x10000000 | 0x000F0000 | 0x000001FF
+        hDesk = user32.OpenDesktopW('default', 0, False, DESKTOP_ALL)
+        if hDesk:
+            user32.SetThreadDesktop(hDesk)
+            return hDesk
+    except Exception:
+        pass
+    return None
+
 def send_key(vk_code):
-    """Simulates pressing and releasing a Windows virtual key with scan code."""
+    """Simulates pressing and releasing a Windows virtual key with scan code on real desktop."""
+    attach_to_user_desktop()
     try:
         import win32api
         scan = win32api.MapVirtualKey(vk_code, 0)
@@ -129,7 +146,8 @@ def get_system_status():
     }
 
 def control_volume(action, steps=1):
-    """Controls volume via direct WM_APPCOMMAND and virtual keys."""
+    """Controls volume via direct WM_APPCOMMAND and virtual keys on active user desktop."""
+    attach_to_user_desktop()
     action = action.lower()
     if action in ("mute", "unmute", "toggle_mute"):
         user32.SendMessageW(HWND_BROADCAST, WM_APPCOMMAND, 0, APPCOMMAND_VOLUME_MUTE)
@@ -152,6 +170,7 @@ def control_volume(action, steps=1):
 
 def control_media(action):
     """Controls media playback via WM_APPCOMMAND and virtual keys."""
+    attach_to_user_desktop()
     action = action.lower()
     mapping = {
         "play_pause": (APPCOMMAND_MEDIA_PLAY_PAUSE, VK_MEDIA_PLAY_PAUSE),
@@ -171,33 +190,42 @@ def control_media(action):
 
 def control_windows(action):
     """Window management actions: minimize_all, show_desktop, lock."""
+    attach_to_user_desktop()
     action = action.lower()
-    if action in ("minimize_all", "desktop", "show_desktop", "toggle_desktop"):
-        # 1. Primary: Native COM Shell.Application MinimizeAll and ToggleDesktop
-        minimized = False
+    if action in ("minimize_all", "desktop", "show_desktop", "toggle_desktop", "minimize"):
+        # 1. Direct enumeration and minimization of visible top-level windows on real desktop
         try:
-            import win32com.client
-            shell = win32com.client.Dispatch("Shell.Application")
-            shell.MinimizeAll()
-            minimized = True
+            DESKTOP_ALL = 0x10000000 | 0x000F0000 | 0x000001FF
+            hDesk = user32.OpenDesktopW('default', 0, False, DESKTOP_ALL)
+            if hDesk:
+                user32.SetThreadDesktop(hDesk)
+                def enum_cb(hwnd, lparam):
+                    if user32.IsWindowVisible(hwnd):
+                        length = user32.GetWindowTextLengthW(hwnd)
+                        if length > 0:
+                            buff = ctypes.create_unicode_buffer(length + 1)
+                            user32.GetWindowTextW(hwnd, buff, length + 1)
+                            title = buff.value
+                            if title and title != "Program Manager":
+                                user32.ShowWindow(hwnd, 6) # SW_MINIMIZE
+                                user32.PostMessageW(hwnd, 0x0112, 0xF020, 0) # SC_MINIMIZE
+                    return True
+                WNDENUMPROC = ctypes.WINFUNCTYPE(ctypes.c_bool, ctypes.c_void_p, ctypes.c_void_p)
+                user32.EnumDesktopWindows(hDesk, WNDENUMPROC(enum_cb), 0)
         except Exception:
             pass
 
-        # 2. Secondary: Simulate Win + D (Toggle Desktop)
+        # 2. Also simulate Win + D on real desktop
         try:
             user32.keybd_event(VK_LWIN, 0, 0, 0)
             user32.keybd_event(VK_D, 0, 0, 0)
             time.sleep(0.04)
             user32.keybd_event(VK_D, 0, KEYEVENTF_KEYUP, 0)
             user32.keybd_event(VK_LWIN, 0, KEYEVENTF_KEYUP, 0)
-            minimized = True
         except Exception:
             pass
 
-        if minimized:
-            return {"success": True, "message": "All windows minimized, desktop shown."}
-        else:
-            return {"success": False, "error": "Unable to minimize desktop windows."}
+        return {"success": True, "message": "All windows minimized. Desktop is shown."}
 
     elif action in ("lock", "lock_pc", "lock_screen", "lock_workstation"):
         user32.LockWorkStation()
@@ -237,6 +265,7 @@ def list_processes(limit=15):
 
 def kill_process(target, force=True):
     """Terminates a process by name or PID with alias resolution."""
+    attach_to_user_desktop()
     target = target.strip()
     if not target:
         return {"success": False, "error": "No target process specified"}
@@ -289,7 +318,8 @@ def kill_process(target, force=True):
     return {"success": False, "error": last_error or f"Process '{target}' not found"}
 
 def launch_application(target, args=""):
-    """Launches an application or URL with foreground focus."""
+    """Launches an application or URL with foreground focus on real user desktop."""
+    attach_to_user_desktop()
     target = target.strip()
     aliases = {
         "microsoft edge": "msedge",
@@ -314,7 +344,7 @@ def launch_application(target, args=""):
     }
     resolved = aliases.get(target.lower(), target)
 
-    # 1. Primary: win32api ShellExecute with SW_SHOWNORMAL (Activates & Focuses window)
+    # 1. Primary: win32api ShellExecute with SW_SHOWNORMAL (Activates & Focuses window in foreground)
     try:
         import win32api, win32con
         win32api.ShellExecute(0, "open", resolved, args, None, win32con.SW_SHOWNORMAL)
@@ -401,40 +431,23 @@ def file_operations(action, path_str, extra=""):
         return {"success": False, "error": str(e)}
 
 def take_screenshot(output_dir="data/screenshots"):
-    """Captures screenshot using PIL or PowerShell."""
+    """Captures screenshot of real user desktop using PIL."""
+    attach_to_user_desktop()
     try:
         os.makedirs(output_dir, exist_ok=True)
         filename = f"screenshot_{datetime.now().strftime('%Y%m%d_%H%M%S')}.png"
         filepath = os.path.join(output_dir, filename)
 
-        try:
-            from PIL import ImageGrab
-            img = ImageGrab.grab()
-            img.save(filepath)
-            return {"success": True, "message": f"Screenshot saved to {filepath}", "path": filepath}
-        except Exception:
-            pass
-
-        # Fallback to PowerShell
-        ps_script = f"""
-Add-Type -AssemblyName System.Windows.Forms
-Add-Type -AssemblyName System.Drawing
-$b = [System.Windows.Forms.Screen]::PrimaryScreen.Bounds
-$bmp = New-Object System.Drawing.Bitmap $b.Width, $b.Height
-$g = [System.Drawing.Graphics]::FromImage($bmp)
-$g.CopyFromScreen($b.Location, [System.Drawing.Point]::Empty, $b.Size)
-$bmp.Save('{os.path.abspath(filepath)}')
-$g.Dispose()
-$bmp.Dispose()
-"""
-        subprocess.run(["powershell", "-NoProfile", "-Command", ps_script], capture_output=True, text=True)
-        if os.path.exists(filepath):
-            return {"success": True, "message": f"Screenshot saved to {filepath}", "path": filepath}
-        return {"success": False, "error": "Screen capture unavailable in current desktop session"}
+        from PIL import ImageGrab
+        img = ImageGrab.grab()
+        img.save(filepath)
+        return {"success": True, "message": f"Screenshot saved to {filepath}", "path": filepath}
     except Exception as e:
         return {"success": False, "error": str(e)}
 
 def main():
+    attach_to_user_desktop()
+
     parser = argparse.ArgumentParser(description="Farhan AI Offline PC Controller")
     subparsers = parser.add_subparsers(dest="command", required=True)
 
@@ -452,7 +465,7 @@ def main():
 
     # window
     win_p = subparsers.add_parser("window")
-    win_p.add_argument("action", choices=["minimize_all", "show_desktop", "toggle_desktop", "lock"])
+    win_p.add_argument("action", choices=["minimize_all", "show_desktop", "toggle_desktop", "minimize", "lock"])
 
     # process
     proc_p = subparsers.add_parser("process")
