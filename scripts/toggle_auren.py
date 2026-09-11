@@ -184,21 +184,54 @@ def bring_window_to_front(hwnd):
         user32.AttachThreadInput(cur_thread, target_thread, False)
 
 def ensure_server_running(port=3000):
-    """Ensures Next.js production server is running."""
+    """Ensures Next.js production server is running and accepting connections."""
     try:
-        with socket.create_connection(("127.0.0.1", port), timeout=0.2):
+        with socket.create_connection(("127.0.0.1", port), timeout=0.3):
             return True
     except Exception:
         pass
 
     script_dir = os.path.dirname(os.path.abspath(__file__))
+    project_dir = os.path.dirname(script_dir)
     vbs_path = os.path.join(script_dir, "start-background.vbs")
+
+    # Tier 1: Run silent VBScript background launcher
     if os.path.isfile(vbs_path):
         try:
             subprocess.Popen(f'wscript.exe "{vbs_path}"', shell=True)
         except Exception:
             pass
 
+    # Wait up to 5 seconds for VBScript launch
+    for _ in range(10):
+        time.sleep(0.5)
+        try:
+            with socket.create_connection(("127.0.0.1", port), timeout=0.3):
+                return True
+        except Exception:
+            pass
+
+    # Tier 2: Direct node.exe fallback launch if VBS did not start port
+    node_candidates = [
+        r"C:\Program Files\nodejs\node.exe",
+        r"C:\Program Files (x86)\nodejs\node.exe"
+    ]
+    node_exe = next((p for p in node_candidates if os.path.isfile(p)), "node.exe")
+    next_bin = os.path.join(project_dir, "node_modules", "next", "dist", "bin", "next")
+
+    if os.path.isfile(next_bin):
+        try:
+            subprocess.Popen(
+                [node_exe, next_bin, "start"],
+                cwd=project_dir,
+                creationflags=0x08000000 | 0x00000200, # CREATE_NO_WINDOW | CREATE_NEW_PROCESS_GROUP
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL
+            )
+        except Exception:
+            pass
+
+    # Wait up to 10 additional seconds for port to open
     for _ in range(20):
         time.sleep(0.5)
         try:
@@ -206,6 +239,7 @@ def ensure_server_running(port=3000):
                 return True
         except Exception:
             pass
+
     return False
 
 def ensure_ollama_running(port=11434):
@@ -227,6 +261,15 @@ def ensure_ollama_running(port=11434):
                 break
             except Exception:
                 pass
+
+    for _ in range(10):
+        time.sleep(0.3)
+        try:
+            with socket.create_connection(("127.0.0.1", port), timeout=0.2):
+                return True
+        except Exception:
+            pass
+
     return False
 
 def launch_auren():

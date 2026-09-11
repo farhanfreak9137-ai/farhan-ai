@@ -26,21 +26,39 @@ export function VoiceStudio() {
   
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
-  // Fetch Voice Provider status
+  // Fetch Voice Provider status with automatic retry during startup
   const fetchStatus = useCallback(async () => {
     try {
       const res = await fetch('/api/voice/status');
       if (res.ok) {
         const data = await res.json();
         setProviderInfo(data);
+        return true;
       }
-    } catch (err) {
-      console.warn('Failed to load voice status:', err);
+    } catch {
+      // Server may still be completing startup handshake
     }
+    return false;
   }, []);
 
   useEffect(() => {
-    fetchStatus();
+    let active = true;
+    let retries = 0;
+    const maxRetries = 8;
+
+    const pollStatus = async () => {
+      const ok = await fetchStatus();
+      if (!ok && active && retries < maxRetries) {
+        retries++;
+        setTimeout(pollStatus, 1000);
+      }
+    };
+
+    pollStatus();
+
+    return () => {
+      active = false;
+    };
   }, [fetchStatus]);
 
   const [wakeStatus, setWakeStatus] = useState<string | null>(null);
@@ -77,11 +95,22 @@ export function VoiceStudio() {
     setHistory((prev) => [...prev, userMessage]);
 
     try {
-      const res = await fetch('/api/voice/command', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ transcript: queryText }),
-      });
+      let res: Response | null = null;
+      try {
+        res = await fetch('/api/voice/command', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ transcript: queryText }),
+        });
+      } catch {
+        // Retry once after 1s in case server was completing background handshake
+        await new Promise((r) => setTimeout(r, 1000));
+        res = await fetch('/api/voice/command', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ transcript: queryText }),
+        });
+      }
 
       if (!res.ok) {
         const errData = await res.json();

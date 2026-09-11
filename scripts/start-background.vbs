@@ -1,10 +1,10 @@
 ' ==============================================================================
-' Farhan AI v1.0 — Silent Background Service Launcher
-' Launches Farhan AI in the background without opening a command prompt window.
+' Auren AI v1.0 — Silent Background Service Launcher
+' Launches Next.js production server in background with zero window flash.
 ' ==============================================================================
 Option Explicit
 
-Dim WshShell, fso, scriptDir, projectDir, cmd
+Dim WshShell, fso, scriptDir, projectDir, nodeExe, nextBin, cmd
 
 Set WshShell = CreateObject("WScript.Shell")
 Set fso = CreateObject("Scripting.FileSystemObject")
@@ -13,12 +13,21 @@ Set fso = CreateObject("Scripting.FileSystemObject")
 scriptDir = fso.GetParentFolderName(WScript.ScriptFullName)
 projectDir = fso.GetParentFolderName(scriptDir)
 
-' Set current working directory to project root
 WshShell.CurrentDirectory = projectDir
 
-' Command to start production server in background with explicit PATH
-' Window style 0 hides the command prompt completely
-cmd = "cmd.exe /c set ""PATH=C:\Program Files\nodejs;%PATH%"" && cd /d """ & projectDir & """ && npm.cmd start"
+' Locate node.exe
+nodeExe = "C:\Program Files\nodejs\node.exe"
+If Not fso.FileExists(nodeExe) Then
+    nodeExe = "C:\Program Files (x86)\nodejs\node.exe"
+    If Not fso.FileExists(nodeExe) Then
+        nodeExe = "node.exe"
+    End If
+End If
+
+nextBin = projectDir & "\node_modules\next\dist\bin\next"
+
+' Launch Next.js production server directly (window style 0 = completely hidden)
+cmd = """" & nodeExe & """ """ & nextBin & """ start"
 
 WshShell.Run cmd, 0, False
 

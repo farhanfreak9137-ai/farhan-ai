@@ -26,6 +26,9 @@ Dim profileDir
 profileDir = WshShell.ExpandEnvironmentStrings("%LOCALAPPDATA%\AurenAI\app-profile")
 
 If Err.Number <> 0 Or ret <> 0 Then
+    ' Ensure background server is running before launching browser
+    WshShell.Run """" & scriptDir & "\start-background.vbs""", 0, False
+    WScript.Sleep 1200
     ' Fallback directly to Edge app mode with dedicated profile
     WshShell.Run "cmd.exe /c start msedge --user-data-dir=""" & profileDir & """ --app=""http://localhost:3000""", 0, False
 End If
