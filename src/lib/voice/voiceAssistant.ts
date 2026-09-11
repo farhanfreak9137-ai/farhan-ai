@@ -110,7 +110,7 @@ export async function processVoiceCommand(request: VoiceCommandRequest): Promise
     responseText,
     responseAudio,
     audioFormat,
-    providerUsed: provider.id,
+    providerUsed: assistantResult.providerUsed || provider.id,
     approvalRequired,
     approvalDetails,
     steps: assistantResult.steps.map((s, idx) => ({

@@ -100,6 +100,7 @@ export function VoiceStudio() {
     approvalRequired?: boolean;
     approvalDetails?: any;
     status: 'thinking' | 'ready';
+    providerUsed?: string;
   } | null>(null);
 
   // Submit voice or text command to /api/voice/command
@@ -145,6 +146,7 @@ export function VoiceStudio() {
         approvalRequired: data.approvalRequired,
         approvalDetails: data.approvalDetails,
         status: 'ready',
+        providerUsed: data.providerUsed,
       });
 
       const assistantMessage: MessageHistoryItem = {
@@ -597,21 +599,39 @@ export function VoiceStudio() {
                   </span>
                 )}
               </div>
-              {latestResponse.toolCalled && (
-                <span
-                  style={{
-                    background: 'rgba(34, 197, 94, 0.15)',
-                    border: '1px solid rgba(34, 197, 94, 0.3)',
-                    color: '#4ade80',
-                    fontSize: '0.75rem',
-                    fontWeight: 600,
-                    padding: '2px 8px',
-                    borderRadius: '999px',
-                  }}
-                >
-                  ⚡ {latestResponse.toolCalled}
-                </span>
-              )}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                {latestResponse.providerUsed === 'local_fastpath' && (
+                  <span
+                    style={{
+                      background: 'rgba(16, 185, 129, 0.2)',
+                      border: '1px solid #10b981',
+                      color: '#34d399',
+                      fontSize: '0.72rem',
+                      fontWeight: 700,
+                      padding: '2px 8px',
+                      borderRadius: '999px',
+                      boxShadow: '0 0 10px rgba(16, 185, 129, 0.25)',
+                    }}
+                  >
+                    ⚡ 0 Tokens • Offline Fast-Path
+                  </span>
+                )}
+                {latestResponse.toolCalled && (
+                  <span
+                    style={{
+                      background: 'rgba(34, 197, 94, 0.15)',
+                      border: '1px solid rgba(34, 197, 94, 0.3)',
+                      color: '#4ade80',
+                      fontSize: '0.75rem',
+                      fontWeight: 600,
+                      padding: '2px 8px',
+                      borderRadius: '999px',
+                    }}
+                  >
+                    ⚡ {latestResponse.toolCalled}
+                  </span>
+                )}
+              </div>
             </div>
 
             <p style={{ margin: 0, fontSize: '0.98rem', color: '#f8fafc', lineHeight: 1.55 }}>
