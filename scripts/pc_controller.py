@@ -366,6 +366,21 @@ def web_search(engine, query):
         url = f"https://www.google.com/search?q={q}"
     return launch_application(url)
 
+def launch_process_on_desktop(cmd_line):
+    """Launches a process explicitly targeted to the user's interactive WinSta0\\default desktop."""
+    try:
+        import win32process, win32con
+        si = win32process.STARTUPINFO()
+        si.lpDesktop = r"WinSta0\default"
+        si.dwFlags = win32process.STARTF_USESHOWWINDOW
+        si.wShowWindow = win32con.SW_SHOWNORMAL
+        win32process.CreateProcess(
+            None, cmd_line, None, None, False, 0, None, None, si
+        )
+        return True
+    except Exception:
+        return False
+
 def launch_application(target, args=""):
     """Launches an application, tool, URL, or shell path with foreground focus on real desktop."""
     attach_to_user_desktop()
@@ -457,6 +472,32 @@ def launch_application(target, args=""):
         "music": os.path.expandvars("%USERPROFILE%\\Music"),
     }
 
+    # Detect installed browser & app paths
+    chrome_paths = [
+        r"C:\Program Files\Google\Chrome\Application\chrome.exe",
+        r"C:\Program Files (x86)\Google\Chrome\Application\chrome.exe",
+        os.path.expandvars(r"%LOCALAPPDATA%\Google\Chrome\Application\chrome.exe")
+    ]
+    detected_chrome = None
+    for cp in chrome_paths:
+        if os.path.exists(cp):
+            detected_chrome = cp
+            aliases["chrome"] = cp
+            aliases["google chrome"] = cp
+            break
+
+    code_paths = [
+        os.path.expandvars(r"%LOCALAPPDATA%\Programs\Microsoft VS Code\Code.exe"),
+        r"C:\Program Files\Microsoft VS Code\Code.exe",
+        r"C:\Program Files (x86)\Microsoft VS Code\Code.exe"
+    ]
+    for cdp in code_paths:
+        if os.path.exists(cdp):
+            aliases["code"] = cdp
+            aliases["vs code"] = cdp
+            aliases["vscode"] = cdp
+            break
+
     resolved = aliases.get(target.lower(), target)
 
     # If it looks like a domain without scheme (e.g. "youtube.com"), prepend https://
@@ -464,27 +505,41 @@ def launch_application(target, args=""):
         if not os.path.exists(resolved):
             resolved = "https://" + resolved
 
-    # 1. Primary: win32api ShellExecute with SW_SHOWNORMAL (Activates & Focuses window in foreground)
-    try:
-        import win32api, win32con
-        win32api.ShellExecute(0, "open", resolved, args, None, win32con.SW_SHOWNORMAL)
-        return {"success": True, "message": f"Successfully launched '{resolved}'", "target": resolved}
-    except Exception:
-        pass
+    # 1. URLs: Open directly in Chrome if installed, or default browser on WinSta0\default
+    if resolved.startswith(("http://", "https://")):
+        if detected_chrome:
+            if launch_process_on_desktop(f'"{detected_chrome}" "{resolved}"'):
+                return {"success": True, "message": f"Opened '{resolved}' in Chrome.", "target": resolved}
+        if launch_process_on_desktop(f'cmd.exe /c start "" "{resolved}"'):
+            return {"success": True, "message": f"Opened '{resolved}' in default browser.", "target": resolved}
 
-    # 2. Secondary: os.startfile
-    try:
-        os.startfile(resolved)
-        return {"success": True, "message": f"Successfully launched '{resolved}'", "target": resolved}
-    except Exception:
-        pass
-
-    # 3. Tertiary: subprocess Popen
-    try:
-        cmd = f'start "" "{resolved}"'
+    # 2. Executable path exists: Launch directly on user desktop
+    if os.path.exists(resolved):
+        cmd = f'"{resolved}"'
         if args:
             cmd += f' {args}'
-        subprocess.Popen(cmd, shell=True)
+        if launch_process_on_desktop(cmd):
+            return {"success": True, "message": f"Successfully launched '{resolved}'", "target": resolved}
+
+    # 3. System command / protocol / app: Launch via start on WinSta0\default
+    cmd = f'cmd.exe /c start "" "{resolved}"'
+    if args:
+        cmd += f' {args}'
+    if launch_process_on_desktop(cmd):
+        return {"success": True, "message": f"Successfully launched '{resolved}'", "target": resolved}
+
+    # 4. Fallback: win32api ShellExecute
+    try:
+        import win32api, win32con
+        hInst = win32api.ShellExecute(0, "open", resolved, args, None, win32con.SW_SHOWNORMAL)
+        if hInst > 32:
+            return {"success": True, "message": f"Successfully launched '{resolved}'", "target": resolved}
+    except Exception:
+        pass
+
+    # 5. Last resort: os.startfile
+    try:
+        os.startfile(resolved)
         return {"success": True, "message": f"Successfully launched '{resolved}'", "target": resolved}
     except Exception as e:
         return {"success": False, "error": f"Failed to launch '{target}': {str(e)}"}

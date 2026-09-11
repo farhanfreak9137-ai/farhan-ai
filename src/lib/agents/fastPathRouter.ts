@@ -56,9 +56,9 @@ const APP_ALIASES: Record<string, string> = {
   'code editor': 'code',
   'ide': 'code',
   // Browsers
-  'browser': 'msedge',
-  'internet': 'msedge',
-  'web': 'msedge',
+  'browser': 'chrome',
+  'internet': 'chrome',
+  'web': 'chrome',
   'chrome': 'chrome',
   'google chrome': 'chrome',
   'edge': 'msedge',
@@ -66,6 +66,7 @@ const APP_ALIASES: Record<string, string> = {
   'brave': 'brave',
   'firefox': 'firefox',
   'opera': 'opera',
+  'yt': 'youtube',
   // Built-in tools
   'calc': 'calc',
   'calculator': 'calc',
@@ -519,11 +520,78 @@ export async function tryFastPathRoute(userPrompt: string): Promise<FastPathMatc
   }
 
   // ---------------------------------------------------------------------------
-  // 4. Web Search Queries
+  // 4. Song, Music & Web Search Queries
   // ---------------------------------------------------------------------------
-  const ytSearchMatch = normalized.match(/^(?:search\s+youtube\s+(?:for\s+)?|youtube\s+|look\s+up\s+(.+?)\s+on\s+youtube|play\s+(.+?)\s+on\s+youtube|watch\s+(.+?)\s+on\s+youtube)(.+)$/i);
-  if (ytSearchMatch) {
-    const query = (ytSearchMatch[1] || ytSearchMatch[2] || ytSearchMatch[3] || ytSearchMatch[4] || '').trim();
+  // Music & Songs Intent (e.g. "search songs", "search songs on youtube", "play songs", "search hindi songs", "songs")
+  const songSearchMatch = normalized.match(/^(?:search(?:\s+for)?|find|look\s+up|play|listen(?:\s+to)?)\s+(.+?\s+(?:songs?|music|tracks?))(?:\s+on\s+youtube)?$/i);
+  const isGenericSongIntent =
+    /^(?:search(?:\s+for)?|find|look\s+up|play|listen(?:\s+to)?)\s+(?:songs?|music|tracks?)(?:\s+on\s+youtube)?$/i.test(normalized) ||
+    normalized === 'songs' ||
+    normalized === 'song' ||
+    normalized === 'search songs' ||
+    normalized === 'search song' ||
+    normalized === 'search music' ||
+    normalized === 'find songs' ||
+    normalized === 'find music' ||
+    normalized === 'play songs' ||
+    normalized === 'play song' ||
+    normalized === 'play music' ||
+    normalized === 'songs on youtube' ||
+    normalized === 'music on youtube' ||
+    normalized.includes('search songs on youtube') ||
+    normalized.includes('search on youtube for songs') ||
+    normalized.includes('search music on youtube') ||
+    normalized.includes('search songs') ||
+    normalized.includes('search music');
+
+  if (songSearchMatch || isGenericSongIntent) {
+    const songQuery = songSearchMatch ? songSearchMatch[1].trim() : 'top songs';
+    await runPcController(['search', 'youtube', songQuery]);
+    return {
+      matched: true,
+      actionName: 'web_search_youtube',
+      answer: `Searching YouTube for "${songQuery}" in your browser.`,
+      steps: [
+        {
+          type: 'reasoning',
+          step: 'intent_resolution',
+          status: 'completed',
+          title: 'Fast-Path: Song Search',
+          details: `Opened YouTube search for "${songQuery}".`,
+        },
+      ],
+    };
+  }
+
+  // Play <X> on YouTube / Search <X> on YouTube
+  const ytPlayMatch = normalized.match(/^(?:play|listen\s+to|watch)\s+(.+?)(?:\s+on\s+youtube)?$/i);
+  if (ytPlayMatch) {
+    const rawTarget = ytPlayMatch[1].trim();
+    if (rawTarget !== 'music' && rawTarget !== 'pause' && rawTarget !== 'media' && rawTarget !== 'it') {
+      await runPcController(['search', 'youtube', rawTarget]);
+      return {
+        matched: true,
+        actionName: 'web_search_youtube',
+        answer: `Playing "${rawTarget}" on YouTube in your browser.`,
+        steps: [
+          {
+            type: 'reasoning',
+            step: 'intent_resolution',
+            status: 'completed',
+            title: 'Fast-Path: YouTube Play',
+            details: `Opened YouTube search for "${rawTarget}".`,
+          },
+        ],
+      };
+    }
+  }
+
+  // General YouTube searches (e.g. "search youtube for <query>", "search <query> on youtube", "youtube <query>")
+  const ytGeneralMatch =
+    normalized.match(/^(?:search\s+youtube\s+for|youtube)\s+(.+)$/i) ||
+    normalized.match(/^(?:search|look\s+up|find)\s+(.+?)\s+(?:on|in)\s+youtube$/i);
+  if (ytGeneralMatch) {
+    const query = ytGeneralMatch[1].trim();
     if (query) {
       await runPcController(['search', 'youtube', query]);
       return {
@@ -727,7 +795,7 @@ export async function tryFastPathRoute(userPrompt: string): Promise<FastPathMatc
   // ---------------------------------------------------------------------------
   // 8. Application Launching (Semantic Synonyms & Prefixes)
   // ---------------------------------------------------------------------------
-  const launchMatch = normalized.match(/^(?:open|launch|start|run|switch\s+to|bring\s+up|show\s+me|fire\s+up|let(?:'s|\s+us)\s+(?:open|use)|go\s+to)\s+(.+)$/i);
+  const launchMatch = normalized.match(/^(?:open|opening|launch|launching|start|starting|run|running|switch\s+to|bring\s+up|show\s+me|fire\s+up|let(?:'s|\s+us)\s+(?:open|opening|use)|go\s+to)\s+(.+)$/i);
   if (launchMatch) {
     const rawTarget = launchMatch[1].trim();
     if (!rawTarget.startsWith('how') && !rawTarget.startsWith('why') && !rawTarget.startsWith('what')) {
@@ -761,10 +829,41 @@ export async function tryFastPathRoute(userPrompt: string): Promise<FastPathMatc
     }
   }
 
+  // Standalone app / site / tool mentions without explicit verbs (e.g. user simply says "youtube", "chrome", "calculator", "calc", "notepad", "code", "vscode", "spotify", "cmd", "terminal")
+  const directApp = APP_ALIASES[normalized] || (normalized === 'youtube' ? 'youtube' : null);
+  const isKnownApp = Boolean(directApp) || ['chrome', 'google chrome', 'youtube', 'calculator', 'calc', 'notepad', 'code', 'vscode', 'terminal', 'cmd', 'spotify', 'task manager', 'taskmgr', 'settings', 'control panel', 'paint', 'snipping tool', 'snip'].includes(normalized);
+  if (isKnownApp) {
+    const targetToLaunch = directApp || normalized;
+    const res = await runPcController(['app', 'launch', targetToLaunch]);
+    if (res.success) {
+      return {
+        matched: true,
+        actionName: 'launch_app',
+        answer: `I've opened **${targetToLaunch}** for you.`,
+        steps: [
+          {
+            type: 'reasoning',
+            step: 'intent_resolution',
+            status: 'completed',
+            title: 'Fast-Path: Application Launch',
+            details: `Launched '${targetToLaunch}' with foreground focus (0 tokens).`,
+          },
+          {
+            type: 'tool_result',
+            step: 'tool_execution',
+            status: 'completed',
+            title: `Launched ${targetToLaunch}`,
+            data: res,
+          },
+        ],
+      };
+    }
+  }
+
   // ---------------------------------------------------------------------------
   // 9. Application Closing / Terminating
   // ---------------------------------------------------------------------------
-  const closeMatch = normalized.match(/^(?:close|quit|kill|terminate|stop|exit|shut\s+down|get\s+rid\s+of|end)\s+(.+)$/i);
+  const closeMatch = normalized.match(/^(?:close|closing|quit|quitting|kill|killing|terminate|terminating|stop|stopping|exit|shut\s+down|shutting\s+down|get\s+rid\s+of|end)\s+(.+)$/i);
   if (closeMatch) {
     const rawTarget = closeMatch[1].trim();
     if (!rawTarget.startsWith('how') && !rawTarget.startsWith('why') && !rawTarget.startsWith('what')) {
