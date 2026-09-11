@@ -43,6 +43,8 @@ export function VoiceStudio() {
     fetchStatus();
   }, [fetchStatus]);
 
+  const [wakeStatus, setWakeStatus] = useState<string | null>(null);
+
   // Handle final speech transcript from the browser recognition hook
   const handleFinalSpeechTranscript = useCallback(async (spokenText: string) => {
     if (!spokenText.trim()) return;
@@ -50,9 +52,38 @@ export function VoiceStudio() {
     await submitVoiceQuery(spokenText);
   }, []);
 
-  const { isListening, isSupported, startListening, stopListening, toggleListening } = useVoiceInput(
-    handleFinalSpeechTranscript
-  );
+  const {
+    isListening,
+    isSupported,
+    wakeWordMode,
+    wakeWordActive,
+    setWakeWordMode,
+    startListening,
+    stopListening,
+    toggleListening,
+    playJarvisChime,
+  } = useVoiceInput(handleFinalSpeechTranscript, {
+    enableWakeWord: false,
+    hotkeyEnabled: true,
+    onWakeWord: (name) => {
+      setWakeStatus(`⚡ ${name} Activated — Listening for command...`);
+      setTimeout(() => setWakeStatus(null), 4000);
+    },
+  });
+
+  // Autostart voice listening if URL query param ?autostart=true or ?voice=true is present
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      if (params.get('autostart') === 'true' || params.get('voice') === 'true') {
+        const timer = setTimeout(() => {
+          playJarvisChime();
+          startListening();
+        }, 600);
+        return () => clearTimeout(timer);
+      }
+    }
+  }, [startListening, playJarvisChime]);
 
   // Synchronize recording state
   useEffect(() => {
@@ -279,6 +310,25 @@ export function VoiceStudio() {
           />
         )}
 
+        {/* Jarvis Wake Word Activation Alert */}
+        {wakeStatus && (
+          <div
+            className="animate-fade-in"
+            style={{
+              background: 'linear-gradient(90deg, rgba(99, 102, 241, 0.3) 0%, rgba(168, 85, 247, 0.3) 100%)',
+              border: '1px solid rgba(168, 85, 247, 0.5)',
+              borderRadius: '999px',
+              padding: '6px 18px',
+              fontSize: '0.85rem',
+              fontWeight: 600,
+              color: '#e0e7ff',
+              boxShadow: '0 0 20px rgba(168, 85, 247, 0.3)',
+            }}
+          >
+            {wakeStatus}
+          </div>
+        )}
+
         {/* State Indicator */}
         <div
           style={{
@@ -306,6 +356,8 @@ export function VoiceStudio() {
             ? '▶ SPEAKING RESPONSE'
             : recordingState === 'ERROR'
             ? '⚠ ATTENTION REQUIRED'
+            : wakeWordMode
+            ? '⚡ JARVIS WAKE MODE ACTIVE (Say "Jarvis..." or "Hey Farhan...")'
             : 'IDLE — READY'}
         </div>
 
@@ -384,6 +436,86 @@ export function VoiceStudio() {
               (Native browser STT unavailable; server voice audio processing active)
             </div>
           )}
+        </div>
+
+        {/* Jarvis Wake Word & Hotkey Control Center */}
+        <div
+          style={{
+            display: 'flex',
+            flexWrap: 'wrap',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: '0.75rem',
+            margin: '0.25rem 0',
+            width: '100%',
+            maxWidth: '680px',
+          }}
+        >
+          {/* Wake Word Toggle */}
+          <button
+            onClick={() => {
+              const next = !wakeWordMode;
+              setWakeWordMode(next);
+              if (next) {
+                playJarvisChime();
+                startListening();
+                setWakeStatus('⚡ Jarvis Mode Active — Say "Jarvis" or "Hey Farhan" followed by your command');
+                setTimeout(() => setWakeStatus(null), 5000);
+              } else {
+                stopListening();
+              }
+            }}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.6rem',
+              padding: '0.55rem 1.15rem',
+              borderRadius: '999px',
+              background: wakeWordMode
+                ? 'linear-gradient(135deg, rgba(99, 102, 241, 0.35) 0%, rgba(168, 85, 247, 0.35) 100%)'
+                : 'rgba(30, 41, 59, 0.5)',
+              border: `1px solid ${wakeWordMode ? 'rgba(168, 85, 247, 0.6)' : 'rgba(255, 255, 255, 0.12)'}`,
+              color: wakeWordMode ? '#c7d2fe' : '#94a3b8',
+              fontSize: '0.83rem',
+              fontWeight: 600,
+              cursor: 'pointer',
+              boxShadow: wakeWordMode ? '0 0 20px rgba(168, 85, 247, 0.25)' : 'none',
+              transition: 'all 0.2s ease',
+            }}
+          >
+            <span style={{ fontSize: '1rem' }}>{wakeWordMode ? '⚡' : '🎙️'}</span>
+            <span>Jarvis Hands-Free Wake Word: <strong style={{ color: wakeWordMode ? '#4ade80' : '#94a3b8' }}>{wakeWordMode ? 'ACTIVE' : 'OFF'}</strong></span>
+          </button>
+
+          {/* Hotkey Badges */}
+          <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+            <span
+              style={{
+                fontSize: '0.75rem',
+                color: '#94a3b8',
+                background: 'rgba(15, 23, 42, 0.8)',
+                padding: '0.35rem 0.7rem',
+                borderRadius: '6px',
+                border: '1px solid rgba(255, 255, 255, 0.08)',
+              }}
+              title="Global Windows Shortcut: Press anywhere in Windows to summon Jarvis"
+            >
+              ⌨️ Windows: <kbd style={{ color: '#60a5fa', fontWeight: 700 }}>Ctrl + Alt + J</kbd>
+            </span>
+            <span
+              style={{
+                fontSize: '0.75rem',
+                color: '#94a3b8',
+                background: 'rgba(15, 23, 42, 0.8)',
+                padding: '0.35rem 0.7rem',
+                borderRadius: '6px',
+                border: '1px solid rgba(255, 255, 255, 0.08)',
+              }}
+              title="In-App Shortcut: Toggle microphone instantly"
+            >
+              App: <kbd style={{ color: '#a78bfa', fontWeight: 700 }}>Alt + J</kbd> or <kbd style={{ color: '#a78bfa', fontWeight: 700 }}>Ctrl + Space</kbd>
+            </span>
+          </div>
         </div>
 
         {/* Live / Last Transcript */}

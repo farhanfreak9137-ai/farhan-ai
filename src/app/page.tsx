@@ -88,6 +88,29 @@ export default function Home() {
     }
 
     loadData();
+
+    // Check for ?voice=true or ?autostart=true query parameter to route directly to Voice/Jarvis
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      if (params.get('voice') === 'true' || params.get('autostart') === 'true') {
+        setActiveView('voice');
+      }
+    }
+  }, []);
+
+  // Global hotkey: Alt+J to instantly summon Jarvis Voice from any view
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const handleGlobalKey = (e: KeyboardEvent) => {
+      const target = e.target as HTMLElement | null;
+      const isInput = target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA');
+      if (e.altKey && (e.key === 'j' || e.key === 'J') && !isInput) {
+        e.preventDefault();
+        setActiveView('voice');
+      }
+    };
+    window.addEventListener('keydown', handleGlobalKey);
+    return () => window.removeEventListener('keydown', handleGlobalKey);
   }, []);
 
   const handleSelectView = (view: ActiveView) => {
