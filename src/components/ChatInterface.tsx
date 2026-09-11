@@ -179,8 +179,8 @@ export function ChatInterface({
               )}
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', width: '100%' }}>
-                {/* Visualizer for Tool Execution Steps */}
-                {!isUser && steps && steps.length > 0 && (
+                {/* Visualizer for Tool Execution Steps (only when tools are actually invoked) */}
+                {!isUser && steps && steps.some((s) => s.type === 'tool_call' || s.type === 'tool_result' || s.type === 'approval_required' || (s.type === 'reasoning' && s.step !== 'intent_resolution')) && (
                   <div
                     style={{
                       background: 'rgba(15, 23, 42, 0.95)',
@@ -195,7 +195,7 @@ export function ChatInterface({
                   >
                     <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#a5b4fc', fontWeight: '600' }}>
                       <SparklesIcon />
-                      <span>Central Assistant Execution Trace:</span>
+                      <span>Action Execution Trace:</span>
                     </div>
                     {steps.map((step, sIdx) => {
                       const isApproval = step.step === 'approval_requested';

@@ -76,7 +76,8 @@ export const RECOMMENDED_MODELS: RecommendedModel[] = [
   },
 ];
 
-const OLLAMA_BASE_URL = process.env.OLLAMA_BASE_URL || 'http://localhost:11434';
+const rawOllamaUrl = process.env.OLLAMA_BASE_URL || 'http://localhost:11434';
+const OLLAMA_BASE_URL = rawOllamaUrl.replace(/\/v1\/?$/, '');
 
 /**
  * Checks if Ollama service is reachable on localhost:11434.

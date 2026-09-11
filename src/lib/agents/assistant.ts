@@ -150,43 +150,64 @@ export class CentralAssistant {
         });
       } catch (err: unknown) {
         console.warn(`[Assistant] Provider ${provider.id} chatWithTools failed:`, err instanceof Error ? err.message : err);
-        if (provider.id === 'gemini' && process.env.OPENAI_API_KEY) {
+        
+        let recovered = false;
+
+        // Try local Ollama first whenever cloud providers fail (free, private, 0 rate limit)
+        if (provider.id !== 'ollama') {
+          try {
+            console.log('[Assistant] Falling back to local Ollama provider...');
+            const ollamaProv = resolveProvider('ollama');
+            if (ollamaProv.chatWithTools) {
+              response = await ollamaProv.chatWithTools(activeMessages, toolsForLLM, {
+                temperature: 0.2,
+              });
+              provider = ollamaProv;
+              recovered = true;
+            }
+          } catch (ollamaErr) {
+            console.warn('[Assistant] Ollama fallback failed:', ollamaErr instanceof Error ? ollamaErr.message : ollamaErr);
+          }
+        }
+
+        // Try OpenAI if configured and not yet recovered
+        if (!recovered && provider.id !== 'openai' && process.env.OPENAI_API_KEY) {
           try {
             console.log('[Assistant] Falling back to OpenAI provider...');
-            provider = resolveProvider('openai');
-            response = await provider.chatWithTools!(activeMessages, toolsForLLM, {
+            const openAiProv = resolveProvider('openai');
+            response = await openAiProv.chatWithTools!(activeMessages, toolsForLLM, {
               temperature: 0.2,
             });
-          } catch (openaiErr: unknown) {
-            console.warn('[Assistant] OpenAI fallback failed, falling back to mock:', openaiErr instanceof Error ? openaiErr.message : openaiErr);
-            provider = resolveProvider('mock');
-            response = await provider.chatWithTools!(activeMessages, toolsForLLM, {
-              temperature: 0.2,
-            });
+            provider = openAiProv;
+            recovered = true;
+          } catch (openaiErr) {
+            console.warn('[Assistant] OpenAI fallback failed:', openaiErr instanceof Error ? openaiErr.message : openaiErr);
           }
-        } else if (provider.id !== 'mock') {
-          provider = resolveProvider('mock');
-          response = await provider.chatWithTools!(activeMessages, toolsForLLM, {
-            temperature: 0.2,
-          });
-        } else {
-          finalAnswer = await provider.chat(activeMessages, { temperature: 0.2 });
-          break;
         }
+
+        // Final safety net: Mock provider
+        if (!recovered) {
+          console.log('[Assistant] Falling back to Mock provider...');
+          provider = resolveProvider('mock');
+          if (provider.chatWithTools) {
+            response = await provider.chatWithTools(activeMessages, toolsForLLM, {
+              temperature: 0.2,
+            });
+          } else {
+            finalAnswer = await provider.chat(activeMessages, { temperature: 0.2 });
+            break;
+          }
+        }
+      }
+
+      if (!response) {
+        finalAnswer = await provider.chat(activeMessages, { temperature: 0.2 });
+        break;
       }
 
       // If the model did NOT request any tool calls, it has answered directly or finished synthesis
       if (!response.toolCalls || response.toolCalls.length === 0) {
         finalAnswer = response.content || '';
-        if (steps.length === 0) {
-          steps.push({
-            type: 'reasoning',
-            step: 'intent_resolution',
-            status: 'completed',
-            title: 'Direct Conversational Response',
-            details: 'No tool invocation required for this request.',
-          });
-        }
         break;
       }
 

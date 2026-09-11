@@ -57,23 +57,31 @@ html, body {
   -moz-osx-font-smoothing: grayscale;
 }
 
-/* Custom modern scrollbars */
+/* Custom modern visible scrollbars */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(99, 102, 241, 0.4) rgba(15, 23, 42, 0.2);
+}
+
 ::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+  width: 8px;
+  height: 8px;
 }
 
 ::-webkit-scrollbar-track {
-  background: transparent;
-}
-
-::-webkit-scrollbar-thumb {
-  background: var(--border-subtle);
+  background: rgba(15, 23, 42, 0.25);
   border-radius: var(--radius-full);
 }
 
+::-webkit-scrollbar-thumb {
+  background: rgba(99, 102, 241, 0.35);
+  border-radius: var(--radius-full);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
 ::-webkit-scrollbar-thumb:hover {
-  background: var(--text-muted);
+  background: rgba(99, 102, 241, 0.7);
+  box-shadow: 0 0 8px rgba(99, 102, 241, 0.5);
 }
 
 /* Glassmorphism card utilities */

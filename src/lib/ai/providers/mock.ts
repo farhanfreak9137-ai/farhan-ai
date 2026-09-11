@@ -149,25 +149,25 @@ export class MockProvider implements LLMProvider {
     }
 
     if (
-      userMessage.includes('hello') ||
-      userMessage.includes('hi') ||
-      userMessage.includes('hey') ||
-      userMessage.includes('who are you') ||
-      userMessage.includes('what can you do') ||
-      userMessage.includes('help') ||
-      userMessage.includes('how to use') ||
-      userMessage.includes('how do i')
+      userMessage.trim() === 'hello' ||
+      userMessage.trim() === 'hi' ||
+      userMessage.trim() === 'hey' ||
+      userMessage.startsWith('hey ') ||
+      userMessage.startsWith('hi ') ||
+      userMessage.startsWith('hello ')
     ) {
-      return "⚡ **Farhan AI System Assistant** (Offline Zero-Token Mode)\n\n" +
-        "I am ready to control your computer and execute actions natively with 0 API token costs:\n\n" +
-        "• **Desktop & Windows**: *\"Clear my screen\"*, *\"Minimize all\"*, *\"Bring back windows\"*, *\"Close active window\"*, *\"Lock PC\"*\n" +
-        "• **Volume & Media**: *\"Make it louder\"*, *\"Turn it down\"*, *\"Mute\"*, *\"Play music\"*, *\"Next song\"*\n" +
-        "• **Applications**: *\"Fire up VS Code\"*, *\"Open Chrome\"*, *\"Open Calculator\"*, *\"Kill Discord\"*\n" +
-        "• **Diagnostics**: *\"Check system specs\"*, *\"What is eating my RAM?\"*, *\"Take a screenshot\"*\n" +
-        "• **Navigation & Search**: *\"Open Downloads\"*, *\"Search Google for <query>\"*, *\"Search YouTube for <query>\"*\n\n" +
-        "Just say or type any command to execute!";
+      return "Hey! How can I help you today? What's on your mind?";
     }
 
-    return "Hello! I am **Auren**, your offline personal assistant. You can give me direct voice or typed commands to control your desktop, launch applications, adjust audio, inspect system performance, or capture screenshots (0 tokens required). How can I assist you right now?";
+    if (
+      userMessage.includes('who are you') ||
+      userMessage.includes('what can you do') ||
+      userMessage.includes('help')
+    ) {
+      return "I'm **Auren**, your personal AI assistant and operating system companion.\n\n" +
+        "You can chat with me about anything, ask technical and general questions, or ask me to control your desktop and run autonomous workflows. What would you like to do?";
+    }
+
+    return "Hello! How can I help you right now?";
   }
 }

@@ -25,7 +25,7 @@ export default function Home() {
   const [activeView, setActiveView] = useState<ActiveView>('assistant');
   const [careerSubView, setCareerSubView] = useState<CareerSubView>('workflows');
   const [providers, setProviders] = useState<ProviderInfo[]>([]);
-  const [selectedProvider, setSelectedProvider] = useState<ProviderId>('gemini');
+  const [selectedProvider, setSelectedProvider] = useState<ProviderId>('ollama');
   const [activeProviderUsed, setActiveProviderUsed] = useState<ProviderId | undefined>();
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [selectedGapRole, setSelectedGapRole] = useState('Senior AI Systems Engineer');
@@ -65,11 +65,17 @@ export default function Home() {
           const providersData = await providersRes.json();
           if (providersData.providers) {
             setProviders(providersData.providers);
-            const firstConfigured = providersData.providers.find(
-              (p: ProviderInfo) => p.configured && p.id !== 'mock'
-            );
-            if (firstConfigured) {
-              setSelectedProvider(firstConfigured.id);
+            // Prioritize local Ollama if running (unlimited, 0 rate limit, free)
+            const ollamaProv = providersData.providers.find((p: ProviderInfo) => p.id === 'ollama' && p.configured);
+            if (ollamaProv) {
+              setSelectedProvider('ollama');
+            } else {
+              const firstConfigured = providersData.providers.find(
+                (p: ProviderInfo) => p.configured && p.id !== 'mock'
+              );
+              if (firstConfigured) {
+                setSelectedProvider(firstConfigured.id);
+              }
             }
           }
         }
@@ -372,7 +378,9 @@ export default function Home() {
           )}
 
           {activeView === 'settings' && (
-            <SettingsSystemView />
+            <div style={{ flex: 1, height: '100%', overflowY: 'auto' }}>
+              <SettingsSystemView />
+            </div>
           )}
         </div>
       </main>

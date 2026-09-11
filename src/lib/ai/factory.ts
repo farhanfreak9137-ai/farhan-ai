@@ -73,6 +73,9 @@ export async function getAvailableProvidersAsync(): Promise<ProviderInfo[]> {
           ollamaProvider.defaultModel = process.env.OLLAMA_MODEL || models[0].name;
           ollamaProvider.name = `Local Ollama (${models.length} model${models.length === 1 ? '' : 's'})`;
         }
+        // Place local offline Ollama at the top so it is selected as the default primary provider
+        const others = baseProviders.filter((p) => p.id !== 'ollama');
+        return [ollamaProvider, ...others];
       }
     }
   } catch (err) {
