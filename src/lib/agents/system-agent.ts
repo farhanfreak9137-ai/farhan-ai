@@ -402,31 +402,52 @@ const launchApplicationTool: AgentTool = {
   }),
   execute: async (input: any, context: AgentExecutionContext) => {
     try {
-      const argsStr = input.args && input.args.length > 0 ? ' ' + input.args.join(' ') : '';
-      const command = `start "" "${input.target}"${argsStr}`;
+      let target = input.target.trim();
+      const lower = target.toLowerCase();
 
-      // Spawn detached process so it doesn't wait or freeze the server
-      const child = spawn('cmd.exe', ['/c', command], {
-        detached: true,
-        stdio: 'ignore',
-      });
-      child.unref();
+      // Normalize common Windows application aliases
+      const aliases: Record<string, string> = {
+        'microsoft edge': 'msedge',
+        'edge': 'msedge',
+        'google chrome': 'chrome',
+        'chrome': 'chrome',
+        'calculator': 'calc',
+        'notepad': 'notepad',
+        'file explorer': 'explorer',
+        'explorer': 'explorer',
+        'visual studio code': 'code',
+        'vs code': 'code',
+        'vscode': 'code',
+        'code': 'code',
+        'powershell': 'powershell',
+        'terminal': 'wt',
+      };
+
+      if (aliases[lower]) {
+        target = aliases[lower];
+      }
+
+      const argsStr = input.args && input.args.length > 0 ? ' ' + input.args.join(' ') : '';
+      const command = `start "" "${target}"${argsStr}`;
+
+      // Launch application asynchronously via Windows shell
+      await execAsync(command, { shell: 'cmd.exe' });
 
       await logAuditEvent({
         eventType: 'application_launched',
         actor: context.userId || 'system_agent',
-        action: `launch_application: ${input.target}`,
+        action: `launch_application: ${target}`,
         status: 'SUCCESS',
-        details: { target: input.target, args: input.args },
+        details: { target, args: input.args },
       });
 
       return {
         toolName: 'launch_application',
         success: true,
         data: {
-          target: input.target,
+          target,
           status: 'LAUNCHED',
-          message: `Successfully launched '${input.target}'`,
+          message: `Successfully launched '${target}'`,
         },
       };
     } catch (err: any) {

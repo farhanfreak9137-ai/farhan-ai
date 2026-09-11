@@ -94,12 +94,24 @@ export function VoiceStudio() {
     }
   }, [isListening]);
 
+  const [latestResponse, setLatestResponse] = useState<{
+    text: string;
+    toolCalled?: string;
+    approvalRequired?: boolean;
+    approvalDetails?: any;
+    status: 'thinking' | 'ready';
+  } | null>(null);
+
   // Submit voice or text command to /api/voice/command
   const submitVoiceQuery = async (queryText: string) => {
     if (!queryText.trim()) return;
 
     setRecordingState('PROCESSING');
     setErrorMessage(null);
+    setLatestResponse({
+      text: 'Consulting Farhan AI agents & executing tools...',
+      status: 'thinking',
+    });
 
     const userMessage: MessageHistoryItem = {
       id: 'msg-' + Date.now(),
@@ -123,6 +135,18 @@ export function VoiceStudio() {
 
       const data: VoiceCommandResponse = await res.json();
 
+      const toolCalled = (data as any).steps?.find(
+        (s: any) => s.title?.includes('Invoking') || s.step === 'tool_execution'
+      )?.title;
+
+      setLatestResponse({
+        text: data.responseText,
+        toolCalled: toolCalled || (data.approvalRequired ? 'Authorization Required' : undefined),
+        approvalRequired: data.approvalRequired,
+        approvalDetails: data.approvalDetails,
+        status: 'ready',
+      });
+
       const assistantMessage: MessageHistoryItem = {
         id: 'msg-' + (Date.now() + 1),
         role: 'assistant',
@@ -136,13 +160,16 @@ export function VoiceStudio() {
       setHistory((prev) => [...prev, assistantMessage]);
       setRecordingState('RESPONDING');
 
-      // Play audio response: try base64 audio first, fallback to browser SpeechSynthesis
-      if (data.responseAudio) {
-        playBase64Audio(data.responseAudio, data.audioFormat || 'wav');
+      // Speech audio: use real MP3 if provided by external TTS, otherwise use browser SpeechSynthesis
+      if (data.responseAudio && data.audioFormat === 'mp3') {
+        playBase64Audio(data.responseAudio, data.audioFormat || 'mp3');
       } else {
         speakText(data.responseText, () => {
           setIsPlayingAudio(false);
           setRecordingState('IDLE');
+          if (wakeWordMode) {
+            startListening();
+          }
         });
         setIsPlayingAudio(true);
       }
@@ -150,6 +177,7 @@ export function VoiceStudio() {
       console.error('Voice processing error:', err);
       setErrorMessage(err.message || 'An error occurred while processing your voice command.');
       setRecordingState('ERROR');
+      setLatestResponse(null);
     }
   };
 
@@ -537,6 +565,78 @@ export function VoiceStudio() {
               Detected Speech
             </span>
             &ldquo;{transcript}&rdquo;
+          </div>
+        )}
+
+        {/* Prominent Live Jarvis Response Card */}
+        {latestResponse && (
+          <div
+            className="animate-fade-in"
+            style={{
+              width: '100%',
+              maxWidth: '650px',
+              background: 'linear-gradient(135deg, rgba(30, 41, 59, 0.85) 0%, rgba(15, 23, 42, 0.95) 100%)',
+              border: '1px solid rgba(56, 189, 248, 0.35)',
+              borderRadius: '14px',
+              padding: '1rem 1.25rem',
+              boxShadow: '0 4px 20px rgba(0, 0, 0, 0.3), 0 0 15px rgba(56, 189, 248, 0.15)',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '0.5rem',
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <span style={{ fontSize: '1.1rem' }}>🤖</span>
+                <span style={{ fontWeight: 700, color: '#38bdf8', fontSize: '0.85rem', letterSpacing: '0.05em' }}>
+                  JARVIS
+                </span>
+                {latestResponse.status === 'thinking' && (
+                  <span style={{ fontSize: '0.75rem', color: '#eab308', fontStyle: 'italic' }}>
+                    (Thinking...)
+                  </span>
+                )}
+              </div>
+              {latestResponse.toolCalled && (
+                <span
+                  style={{
+                    background: 'rgba(34, 197, 94, 0.15)',
+                    border: '1px solid rgba(34, 197, 94, 0.3)',
+                    color: '#4ade80',
+                    fontSize: '0.75rem',
+                    fontWeight: 600,
+                    padding: '2px 8px',
+                    borderRadius: '999px',
+                  }}
+                >
+                  ⚡ {latestResponse.toolCalled}
+                </span>
+              )}
+            </div>
+
+            <p style={{ margin: 0, fontSize: '0.98rem', color: '#f8fafc', lineHeight: 1.55 }}>
+              {latestResponse.text}
+            </p>
+
+            {latestResponse.approvalRequired && (
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.5rem',
+                  marginTop: '0.25rem',
+                  padding: '0.5rem 0.75rem',
+                  borderRadius: '8px',
+                  background: 'rgba(234, 179, 8, 0.15)',
+                  border: '1px solid rgba(234, 179, 8, 0.3)',
+                  color: '#facc15',
+                  fontSize: '0.82rem',
+                }}
+              >
+                <ShieldCheckIcon className="w-4 h-4" />
+                <span>Action pending authorization. Say &ldquo;Approve&rdquo; to execute.</span>
+              </div>
+            )}
           </div>
         )}
 
