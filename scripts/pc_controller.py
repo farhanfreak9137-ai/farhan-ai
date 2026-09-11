@@ -5,7 +5,7 @@ Fully offline, zero-API Windows computer automation.
 Provides deterministic system control:
   - System diagnostics & hardware health
   - Audio & media control (volume up/down/mute, play/pause)
-  - Window & workstation control (minimize all, lock screen)
+  - Window & workstation control (minimize all, show desktop, lock screen)
   - Process management (list running, terminate)
   - Application launcher & closer
   - File and folder operations (create, delete, list, search)
@@ -24,6 +24,9 @@ from pathlib import Path
 from datetime import datetime
 
 # Windows Virtual-Key codes
+VK_LWIN = 0x5B
+VK_D = 0x44
+VK_M = 0x4D
 VK_VOLUME_MUTE = 0xAD
 VK_VOLUME_DOWN = 0xAE
 VK_VOLUME_UP = 0xAF
@@ -32,6 +35,17 @@ VK_MEDIA_PREV_TRACK = 0xB1
 VK_MEDIA_STOP = 0xB2
 VK_MEDIA_PLAY_PAUSE = 0xB3
 
+# WM_APPCOMMAND constants
+HWND_BROADCAST = 0xFFFF
+WM_APPCOMMAND = 0x0319
+APPCOMMAND_VOLUME_MUTE = 0x80000
+APPCOMMAND_VOLUME_DOWN = 0x90000
+APPCOMMAND_VOLUME_UP = 0xA0000
+APPCOMMAND_MEDIA_NEXTTRACK = 0xB0000
+APPCOMMAND_MEDIA_PREVIOUSTRACK = 0xC0000
+APPCOMMAND_MEDIA_STOP = 0xD0000
+APPCOMMAND_MEDIA_PLAY_PAUSE = 0xE0000
+
 KEYEVENTF_EXTENDEDKEY = 0x0001
 KEYEVENTF_KEYUP = 0x0002
 
@@ -39,10 +53,15 @@ user32 = ctypes.windll.user32
 kernel32 = ctypes.windll.kernel32
 
 def send_key(vk_code):
-    """Simulates pressing and releasing a Windows virtual key."""
-    user32.keybd_event(vk_code, 0, KEYEVENTF_EXTENDEDKEY, 0)
-    time.sleep(0.05)
-    user32.keybd_event(vk_code, 0, KEYEVENTF_EXTENDEDKEY | KEYEVENTF_KEYUP, 0)
+    """Simulates pressing and releasing a Windows virtual key with scan code."""
+    try:
+        import win32api
+        scan = win32api.MapVirtualKey(vk_code, 0)
+    except Exception:
+        scan = 0
+    user32.keybd_event(vk_code, scan, KEYEVENTF_EXTENDEDKEY, 0)
+    time.sleep(0.04)
+    user32.keybd_event(vk_code, scan, KEYEVENTF_EXTENDEDKEY | KEYEVENTF_KEYUP, 0)
 
 # Memory status structure
 class MEMORYSTATUSEX(ctypes.Structure):
@@ -110,50 +129,77 @@ def get_system_status():
     }
 
 def control_volume(action, steps=1):
-    """Controls volume: up, down, mute."""
+    """Controls volume via direct WM_APPCOMMAND and virtual keys."""
     action = action.lower()
-    if action == "mute":
+    if action in ("mute", "unmute", "toggle_mute"):
+        user32.SendMessageW(HWND_BROADCAST, WM_APPCOMMAND, 0, APPCOMMAND_VOLUME_MUTE)
         send_key(VK_VOLUME_MUTE)
         return {"success": True, "message": "Toggled volume mute"}
     elif action == "up":
         for _ in range(max(1, steps)):
+            user32.SendMessageW(HWND_BROADCAST, WM_APPCOMMAND, 0, APPCOMMAND_VOLUME_UP)
             send_key(VK_VOLUME_UP)
-            time.sleep(0.02)
+            time.sleep(0.03)
         return {"success": True, "message": f"Volume increased by {steps * 2}%"}
     elif action == "down":
         for _ in range(max(1, steps)):
+            user32.SendMessageW(HWND_BROADCAST, WM_APPCOMMAND, 0, APPCOMMAND_VOLUME_DOWN)
             send_key(VK_VOLUME_DOWN)
-            time.sleep(0.02)
+            time.sleep(0.03)
         return {"success": True, "message": f"Volume decreased by {steps * 2}%"}
     else:
         return {"success": False, "error": f"Unknown volume action: {action}. Use up, down, or mute."}
 
 def control_media(action):
-    """Controls media playback: play_pause, next, prev, stop."""
+    """Controls media playback via WM_APPCOMMAND and virtual keys."""
     action = action.lower()
     mapping = {
-        "play_pause": VK_MEDIA_PLAY_PAUSE,
-        "play": VK_MEDIA_PLAY_PAUSE,
-        "pause": VK_MEDIA_PLAY_PAUSE,
-        "next": VK_MEDIA_NEXT_TRACK,
-        "prev": VK_MEDIA_PREV_TRACK,
-        "previous": VK_MEDIA_PREV_TRACK,
-        "stop": VK_MEDIA_STOP
+        "play_pause": (APPCOMMAND_MEDIA_PLAY_PAUSE, VK_MEDIA_PLAY_PAUSE),
+        "play": (APPCOMMAND_MEDIA_PLAY_PAUSE, VK_MEDIA_PLAY_PAUSE),
+        "pause": (APPCOMMAND_MEDIA_PLAY_PAUSE, VK_MEDIA_PLAY_PAUSE),
+        "next": (APPCOMMAND_MEDIA_NEXTTRACK, VK_MEDIA_NEXT_TRACK),
+        "prev": (APPCOMMAND_MEDIA_PREVIOUSTRACK, VK_MEDIA_PREV_TRACK),
+        "previous": (APPCOMMAND_MEDIA_PREVIOUSTRACK, VK_MEDIA_PREV_TRACK),
+        "stop": (APPCOMMAND_MEDIA_STOP, VK_MEDIA_STOP)
     }
     if action in mapping:
-        send_key(mapping[action])
+        app_cmd, vk = mapping[action]
+        user32.SendMessageW(HWND_BROADCAST, WM_APPCOMMAND, 0, app_cmd)
+        send_key(vk)
         return {"success": True, "message": f"Media command '{action}' triggered"}
     return {"success": False, "error": f"Unknown media action: {action}"}
 
 def control_windows(action):
-    """Window management actions: minimize_all, lock."""
+    """Window management actions: minimize_all, show_desktop, lock."""
     action = action.lower()
-    if action in ("minimize_all", "desktop", "show_desktop"):
-        # Minimize all windows via Shell.Application COM
-        cmd = "powershell -NoProfile -Command \"(New-Object -ComObject Shell.Application).MinimizeAll()\""
-        subprocess.run(cmd, shell=True, capture_output=True)
-        return {"success": True, "message": "All windows minimized, desktop shown."}
-    elif action in ("lock", "lock_pc", "lock_screen"):
+    if action in ("minimize_all", "desktop", "show_desktop", "toggle_desktop"):
+        # 1. Primary: Native COM Shell.Application MinimizeAll and ToggleDesktop
+        minimized = False
+        try:
+            import win32com.client
+            shell = win32com.client.Dispatch("Shell.Application")
+            shell.MinimizeAll()
+            minimized = True
+        except Exception:
+            pass
+
+        # 2. Secondary: Simulate Win + D (Toggle Desktop)
+        try:
+            user32.keybd_event(VK_LWIN, 0, 0, 0)
+            user32.keybd_event(VK_D, 0, 0, 0)
+            time.sleep(0.04)
+            user32.keybd_event(VK_D, 0, KEYEVENTF_KEYUP, 0)
+            user32.keybd_event(VK_LWIN, 0, KEYEVENTF_KEYUP, 0)
+            minimized = True
+        except Exception:
+            pass
+
+        if minimized:
+            return {"success": True, "message": "All windows minimized, desktop shown."}
+        else:
+            return {"success": False, "error": "Unable to minimize desktop windows."}
+
+    elif action in ("lock", "lock_pc", "lock_screen", "lock_workstation"):
         user32.LockWorkStation()
         return {"success": True, "message": "Workstation locked successfully."}
     return {"success": False, "error": f"Unknown window action: {action}"}
@@ -189,8 +235,8 @@ def list_processes(limit=15):
     except Exception as e:
         return {"success": False, "error": str(e)}
 
-def kill_process(target, force=False):
-    """Terminates a process by name or PID."""
+def kill_process(target, force=True):
+    """Terminates a process by name or PID with alias resolution."""
     target = target.strip()
     if not target:
         return {"success": False, "error": "No target process specified"}
@@ -203,22 +249,47 @@ def kill_process(target, force=False):
     if target.lower() in protected:
         return {"success": False, "error": f"Terminating protected system process '{target}' is not allowed."}
 
-    flag = "/F" if force else ""
-    if target.isdigit():
-        cmd = f"taskkill {flag} /PID {target}"
-    else:
-        if not target.lower().endswith(".exe"):
-            target += ".exe"
-        cmd = f"taskkill {flag} /IM \"{target}\""
+    # Common process name aliases
+    proc_aliases = {
+        "calculator": ["CalculatorApp.exe", "calc.exe"],
+        "calc": ["CalculatorApp.exe", "calc.exe"],
+        "notepad": ["notepad.exe"],
+        "edge": ["msedge.exe"],
+        "microsoft edge": ["msedge.exe"],
+        "chrome": ["chrome.exe"],
+        "google chrome": ["chrome.exe"],
+        "vscode": ["Code.exe"],
+        "vs code": ["Code.exe"],
+        "code": ["Code.exe"],
+        "terminal": ["WindowsTerminal.exe"],
+        "task manager": ["Taskmgr.exe"],
+        "paint": ["mspaint.exe"]
+    }
 
-    res = subprocess.run(cmd, shell=True, capture_output=True, text=True)
-    if res.returncode == 0:
-        return {"success": True, "message": f"Terminated process '{target}' successfully.", "details": res.stdout.strip()}
-    else:
-        return {"success": False, "error": res.stderr.strip() or res.stdout.strip() or f"Failed to kill {target}"}
+    targets_to_try = proc_aliases.get(target.lower(), [target])
+    flag = "/F" if force else ""
+
+    last_error = ""
+    for t in targets_to_try:
+        if t.isdigit():
+            cmd = f"taskkill {flag} /PID {t}"
+        else:
+            if not t.lower().endswith(".exe"):
+                t_exe = t + ".exe"
+            else:
+                t_exe = t
+            cmd = f"taskkill {flag} /IM \"{t_exe}\""
+
+        res = subprocess.run(cmd, shell=True, capture_output=True, text=True)
+        if res.returncode == 0:
+            return {"success": True, "message": f"Terminated process '{t}' successfully.", "details": res.stdout.strip()}
+        else:
+            last_error = res.stderr.strip() or res.stdout.strip()
+
+    return {"success": False, "error": last_error or f"Process '{target}' not found"}
 
 def launch_application(target, args=""):
-    """Launches an application or URL."""
+    """Launches an application or URL with foreground focus."""
     target = target.strip()
     aliases = {
         "microsoft edge": "msedge",
@@ -234,18 +305,36 @@ def launch_application(target, args=""):
         "vscode": "code",
         "code": "code",
         "terminal": "wt",
+        "cmd": "cmd.exe",
+        "powershell": "powershell.exe",
         "task manager": "taskmgr",
         "settings": "ms-settings:",
         "control panel": "control",
         "paint": "mspaint"
     }
     resolved = aliases.get(target.lower(), target)
-    cmd = f'start "" "{resolved}"'
-    if args:
-        cmd += f' {args}'
-    
+
+    # 1. Primary: win32api ShellExecute with SW_SHOWNORMAL (Activates & Focuses window)
     try:
-        subprocess.run(cmd, shell=True, check=True)
+        import win32api, win32con
+        win32api.ShellExecute(0, "open", resolved, args, None, win32con.SW_SHOWNORMAL)
+        return {"success": True, "message": f"Successfully launched '{resolved}'", "target": resolved}
+    except Exception:
+        pass
+
+    # 2. Secondary: os.startfile
+    try:
+        os.startfile(resolved)
+        return {"success": True, "message": f"Successfully launched '{resolved}'", "target": resolved}
+    except Exception:
+        pass
+
+    # 3. Tertiary: subprocess Popen
+    try:
+        cmd = f'start "" "{resolved}"'
+        if args:
+            cmd += f' {args}'
+        subprocess.Popen(cmd, shell=True)
         return {"success": True, "message": f"Successfully launched '{resolved}'", "target": resolved}
     except Exception as e:
         return {"success": False, "error": f"Failed to launch '{target}': {str(e)}"}
@@ -324,8 +413,10 @@ def take_screenshot(output_dir="data/screenshots"):
             img.save(filepath)
             return {"success": True, "message": f"Screenshot saved to {filepath}", "path": filepath}
         except Exception:
-            # Fallback to PowerShell screen capture script
-            ps_script = f"""
+            pass
+
+        # Fallback to PowerShell
+        ps_script = f"""
 Add-Type -AssemblyName System.Windows.Forms
 Add-Type -AssemblyName System.Drawing
 $b = [System.Windows.Forms.Screen]::PrimaryScreen.Bounds
@@ -336,10 +427,10 @@ $bmp.Save('{os.path.abspath(filepath)}')
 $g.Dispose()
 $bmp.Dispose()
 """
-            res = subprocess.run(["powershell", "-NoProfile", "-Command", ps_script], capture_output=True, text=True)
-            if os.path.exists(filepath):
-                return {"success": True, "message": f"Screenshot saved to {filepath}", "path": filepath}
-            return {"success": False, "error": "Screen capture unavailable in current desktop session"}
+        subprocess.run(["powershell", "-NoProfile", "-Command", ps_script], capture_output=True, text=True)
+        if os.path.exists(filepath):
+            return {"success": True, "message": f"Screenshot saved to {filepath}", "path": filepath}
+        return {"success": False, "error": "Screen capture unavailable in current desktop session"}
     except Exception as e:
         return {"success": False, "error": str(e)}
 
@@ -352,7 +443,7 @@ def main():
 
     # volume
     vol_p = subparsers.add_parser("volume")
-    vol_p.add_argument("action", choices=["up", "down", "mute"])
+    vol_p.add_argument("action", choices=["up", "down", "mute", "unmute", "toggle_mute"])
     vol_p.add_argument("--steps", type=int, default=2)
 
     # media
@@ -361,7 +452,7 @@ def main():
 
     # window
     win_p = subparsers.add_parser("window")
-    win_p.add_argument("action", choices=["minimize_all", "lock"])
+    win_p.add_argument("action", choices=["minimize_all", "show_desktop", "toggle_desktop", "lock"])
 
     # process
     proc_p = subparsers.add_parser("process")
