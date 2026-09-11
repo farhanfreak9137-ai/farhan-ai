@@ -142,7 +142,16 @@ def bring_window_to_front(hwnd):
     else:
         user32.ShowWindow(hwnd, SW_SHOW)
 
-    # 2. Attach thread input of foreground thread and current thread
+    # 2. Force to top of Z-order via TOPMOST toggle (bypasses Windows foreground lock)
+    HWND_TOPMOST = -1
+    HWND_NOTOPMOST = -2
+    SWP_NOSIZE = 1
+    SWP_NOMOVE = 2
+    SWP_SHOWWINDOW = 0x0040
+    user32.SetWindowPos(hwnd, HWND_TOPMOST, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_SHOWWINDOW)
+    user32.SetWindowPos(hwnd, HWND_NOTOPMOST, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_SHOWWINDOW)
+
+    # 3. Attach thread input of foreground thread and current thread
     fg_hwnd = user32.GetForegroundWindow()
     fg_thread = user32.GetWindowThreadProcessId(fg_hwnd, None) if fg_hwnd else 0
     cur_thread = kernel32.GetCurrentThreadId()
@@ -156,15 +165,19 @@ def bring_window_to_front(hwnd):
     if target_thread and target_thread != cur_thread:
         attached_target = user32.AttachThreadInput(cur_thread, target_thread, True)
 
-    # 3. Simulate Alt key event to bypass Windows foreground restrictions
+    # 4. Simulate Alt key event to bypass Windows foreground restrictions
     user32.keybd_event(0x12, 0, 0, 0)  # ALT down
     user32.BringWindowToTop(hwnd)
     user32.SetForegroundWindow(hwnd)
     user32.SetActiveWindow(hwnd)
     user32.SetFocus(hwnd)
+    try:
+        user32.SwitchToThisWindow(hwnd, True)
+    except Exception:
+        pass
     user32.keybd_event(0x12, 0, 2, 0)  # ALT up
 
-    # 4. Detach thread inputs
+    # 5. Detach thread inputs
     if attached_fg:
         user32.AttachThreadInput(cur_thread, fg_thread, False)
     if attached_target:
