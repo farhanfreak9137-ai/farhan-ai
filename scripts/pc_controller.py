@@ -299,44 +299,13 @@ def kill_process(target, force=True):
     if target.lower() in ["window", "active window", "this window", "current window"]:
         return control_windows("close_active")
 
-    # Common process name aliases
-    proc_aliases = {
-        "calculator": ["CalculatorApp.exe", "calc.exe"],
-        "calc": ["CalculatorApp.exe", "calc.exe"],
-        "notepad": ["notepad.exe"],
-        "edge": ["msedge.exe"],
-        "microsoft edge": ["msedge.exe"],
-        "chrome": ["chrome.exe"],
-        "google chrome": ["chrome.exe"],
-        "brave": ["brave.exe"],
-        "firefox": ["firefox.exe"],
-        "opera": ["opera.exe"],
-        "vscode": ["Code.exe"],
-        "vs code": ["Code.exe"],
-        "code": ["Code.exe"],
-        "terminal": ["WindowsTerminal.exe"],
-        "task manager": ["Taskmgr.exe"],
-        "taskmgr": ["Taskmgr.exe"],
-        "paint": ["mspaint.exe"],
-        "spotify": ["Spotify.exe"],
-        "vlc": ["vlc.exe"],
-        "discord": ["Discord.exe"],
-        "whatsapp": ["WhatsApp.exe"],
-        "telegram": ["Telegram.exe"],
-        "steam": ["steam.exe"],
-        "slack": ["slack.exe"],
-        "teams": ["ms-teams.exe", "Teams.exe"],
-        "zoom": ["Zoom.exe"],
-        "word": ["WINWORD.EXE"],
-        "excel": ["EXCEL.EXE"],
-        "powerpoint": ["POWERPNT.EXE"],
-        "control panel": ["control.exe"],
-        "settings": ["SystemSettings.exe"]
-    }
+    # Unified Process Lookup from APP_REGISTRY
+    t_clean = target.lower().strip()
+    targets_to_try = KILL_TARGETS.get(t_clean)
+    if not targets_to_try:
+        targets_to_try = [target]
 
-    targets_to_try = proc_aliases.get(target.lower(), [target])
     flag = "/F" if force else ""
-
     last_error = ""
     for t in targets_to_try:
         if t.isdigit():
@@ -346,7 +315,7 @@ def kill_process(target, force=True):
                 t_exe = t + ".exe"
             else:
                 t_exe = t
-            cmd = f"taskkill {flag} /IM \"{t_exe}\""
+            cmd = f'taskkill {flag} /IM "{t_exe}"'
 
         res = subprocess.run(cmd, shell=True, capture_output=True, text=True)
         if res.returncode == 0:
@@ -355,6 +324,471 @@ def kill_process(target, force=True):
             last_error = res.stderr.strip() or res.stdout.strip()
 
     return {"success": False, "error": last_error or f"Process '{target}' not found"}
+
+# ==============================================================================
+# Comprehensive Installed Applications & System Tools Registry
+# ==============================================================================
+APP_REGISTRY = {
+    # 1. Web Browsers
+    "chrome": {
+        "name": "Google Chrome",
+        "launch": r"C:\Program Files\Google\Chrome\Application\chrome.exe",
+        "kill": ["chrome.exe"],
+        "aliases": ["chrome", "google chrome", "googlechrome", "browser", "web browser", "internet", "web"]
+    },
+    "edge": {
+        "name": "Microsoft Edge",
+        "launch": r"C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe",
+        "kill": ["msedge.exe"],
+        "aliases": ["edge", "microsoft edge", "ms edge", "msedge"]
+    },
+    "internet explorer": {
+        "name": "Internet Explorer",
+        "launch": r"C:\Program Files\Internet Explorer\iexplore.exe",
+        "kill": ["iexplore.exe"],
+        "aliases": ["internet explorer", "ie"]
+    },
+
+    # 2. Social, Chat & Communication
+    "whatsapp": {
+        "name": "WhatsApp Desktop",
+        "launch": r"explorer.exe shell:AppsFolder\5319275A.WhatsAppDesktop_cv1g1gvanyjgm!App",
+        "kill": ["WhatsApp.Root.exe", "WhatsApp.exe", "WhatsAppDesktop.exe"],
+        "aliases": ["whatsapp", "wa", "whatsapp desktop"]
+    },
+    "chatgpt": {
+        "name": "ChatGPT Desktop",
+        "launch": r"explorer.exe shell:AppsFolder\OpenAI.Codex_2p2nqsd0c76g0!App",
+        "kill": ["codex.exe", "ChatGPT.exe", "OpenAI.Codex.exe"],
+        "aliases": ["chatgpt", "chat gpt", "gpt", "openai", "chatgpt desktop"]
+    },
+    "skype": {
+        "name": "Skype",
+        "launch": r"explorer.exe shell:AppsFolder\Microsoft.SkypeApp_kzf8qxf38zg5c!App",
+        "kill": ["Skype.exe", "SkypeApp.exe"],
+        "aliases": ["skype"]
+    },
+    "phone link": {
+        "name": "Phone Link",
+        "launch": r"explorer.exe shell:AppsFolder\Microsoft.YourPhone_8wekyb3d8bbwe!App",
+        "kill": ["PhoneExperienceHost.exe", "YourPhone.exe"],
+        "aliases": ["phone link", "your phone", "phone", "phonelink"]
+    },
+
+    # 3. Microsoft Office & Productivity
+    "word": {
+        "name": "Microsoft Word 2013",
+        "launch": r"C:\Program Files (x86)\Microsoft Office\Office15\WINWORD.EXE",
+        "kill": ["WINWORD.EXE"],
+        "aliases": ["word", "ms word", "microsoft word", "word 2013", "winword"]
+    },
+    "excel": {
+        "name": "Microsoft Excel 2013",
+        "launch": r"C:\Program Files (x86)\Microsoft Office\Office15\EXCEL.EXE",
+        "kill": ["EXCEL.EXE"],
+        "aliases": ["excel", "ms excel", "microsoft excel", "excel 2013"]
+    },
+    "powerpoint": {
+        "name": "Microsoft PowerPoint 2013",
+        "launch": r"C:\Program Files (x86)\Microsoft Office\Office15\POWERPNT.EXE",
+        "kill": ["POWERPNT.EXE"],
+        "aliases": ["powerpoint", "power point", "ppt", "powerpnt", "powerpoint 2013", "presentation"]
+    },
+    "onenote": {
+        "name": "Microsoft OneNote 2013",
+        "launch": r"C:\Program Files (x86)\Microsoft Office\Office15\ONENOTE.EXE",
+        "kill": ["ONENOTE.EXE", "OneNote.exe", "OneNoteIm.exe"],
+        "aliases": ["onenote", "one note", "onenote 2013"]
+    },
+    "outlook": {
+        "name": "Microsoft Outlook 2013",
+        "launch": r"C:\Program Files (x86)\Microsoft Office\Office15\OUTLOOK.EXE",
+        "kill": ["OUTLOOK.EXE", "olk.exe"],
+        "aliases": ["outlook", "email", "mail", "ms outlook", "outlook 2013"]
+    },
+
+    # 4. Developer Tools & IDEs
+    "android studio": {
+        "name": "Android Studio",
+        "launch": r"C:\Program Files\Android\Android Studio\bin\studio64.exe",
+        "kill": ["studio64.exe", "studio.exe"],
+        "aliases": ["android studio", "studio", "androidstudio"]
+    },
+    "vs code": {
+        "name": "Visual Studio Code",
+        "launch": os.path.expandvars(r"%LOCALAPPDATA%\Programs\Microsoft VS Code\Code.exe"),
+        "kill": ["Code.exe"],
+        "aliases": ["vs code", "vscode", "code", "visual studio code", "editor", "code editor"]
+    },
+    "antigravity": {
+        "name": "Antigravity / Farhan AI",
+        "launch": os.path.expandvars(r"%LOCALAPPDATA%\Programs\antigravity\Antigravity.exe"),
+        "kill": ["Antigravity.exe"],
+        "aliases": ["antigravity", "jarvis", "farhan ai", "agent"]
+    },
+    "git bash": {
+        "name": "Git Bash",
+        "launch": r"C:\Program Files\Git\git-bash.exe",
+        "kill": ["mintty.exe", "bash.exe"],
+        "aliases": ["git bash", "gitbash", "bash"]
+    },
+    "git gui": {
+        "name": "Git GUI",
+        "launch": r"C:\Program Files\Git\cmd\git-gui.exe",
+        "kill": ["wish.exe"],
+        "aliases": ["git gui", "gitgui"]
+    },
+    "git cmd": {
+        "name": "Git CMD",
+        "launch": r"C:\Program Files\Git\git-cmd.exe",
+        "kill": ["cmd.exe"],
+        "aliases": ["git cmd", "gitcmd"]
+    },
+    "python idle": {
+        "name": "Python IDLE",
+        "launch": os.path.expandvars(r'%LOCALAPPDATA%\Python\pythoncore-3.14-64\pythonw.exe "%LOCALAPPDATA%\Python\pythoncore-3.14-64\Lib\idlelib\idle.pyw"'),
+        "kill": ["pythonw.exe"],
+        "aliases": ["idle", "python idle", "python 3.14 idle", "python editor"]
+    },
+    "node": {
+        "name": "Node.js",
+        "launch": r"C:\Program Files\nodejs\node.exe",
+        "kill": ["node.exe"],
+        "aliases": ["node", "nodejs"]
+    },
+
+    # 5. Media, Audio & Video
+    "vlc": {
+        "name": "VLC Media Player",
+        "launch": r"C:\Program Files\VideoLAN\VLC\vlc.exe",
+        "kill": ["vlc.exe"],
+        "aliases": ["vlc", "vlc player", "vlc media player", "video player"]
+    },
+    "fxsound": {
+        "name": "FxSound Equalizer",
+        "launch": r"C:\Program Files\FxSound LLC\FxSound\FxSound.exe",
+        "kill": ["FxSound.exe"],
+        "aliases": ["fxsound", "fx sound", "equalizer", "sound equalizer", "audio boost"]
+    },
+    "windows media player": {
+        "name": "Windows Media Player",
+        "launch": r"C:\Program Files (x86)\Windows Media Player\wmplayer.exe",
+        "kill": ["wmplayer.exe"],
+        "aliases": ["windows media player", "media player", "wmplayer"]
+    },
+    "movies and tv": {
+        "name": "Movies & TV",
+        "launch": r"explorer.exe shell:AppsFolder\Microsoft.ZuneVideo_8wekyb3d8bbwe!Microsoft.ZuneVideo",
+        "kill": ["Video.UI.exe"],
+        "aliases": ["movies and tv", "movies & tv", "movies", "tv", "films"]
+    },
+    "voice recorder": {
+        "name": "Voice Recorder",
+        "launch": r"explorer.exe shell:AppsFolder\Microsoft.WindowsSoundRecorder_8wekyb3d8bbwe!App",
+        "kill": ["SoundRec.exe"],
+        "aliases": ["voice recorder", "sound recorder", "recorder", "audio recorder"]
+    },
+    "camera": {
+        "name": "Camera",
+        "launch": r"explorer.exe shell:AppsFolder\Microsoft.WindowsCamera_8wekyb3d8bbwe!App",
+        "kill": ["WindowsCamera.exe"],
+        "aliases": ["camera", "webcam", "web cam"]
+    },
+    "photos": {
+        "name": "Photos",
+        "launch": r"explorer.exe shell:AppsFolder\Microsoft.Windows.Photos_8wekyb3d8bbwe!App",
+        "kill": ["PhotosApp.exe", "Microsoft.Photos.exe"],
+        "aliases": ["photos", "pictures", "photo viewer", "gallery"]
+    },
+
+    # 6. Games & Gaming
+    "tlauncher": {
+        "name": "TLauncher (Minecraft)",
+        "launch": os.path.expandvars(r"%APPDATA%\.minecraft\TLauncher.exe"),
+        "kill": ["TLauncher.exe", "javaw.exe"],
+        "aliases": ["tlauncher", "minecraft", "tl", "minecraft launcher"]
+    },
+    "roblox": {
+        "name": "Roblox Studio",
+        "launch": os.path.expandvars(r"%LOCALAPPDATA%\Roblox\Versions\RobloxStudioInstaller.exe"),
+        "kill": ["RobloxStudioInstaller.exe", "RobloxStudioBeta.exe", "RobloxPlayerBeta.exe"],
+        "aliases": ["roblox", "roblox studio"]
+    },
+    "asphalt 8": {
+        "name": "Asphalt 8: Airborne",
+        "launch": r"explorer.exe shell:AppsFolder\GAMELOFTSA.Asphalt8Airborne_0pp20fcewvvtj!App",
+        "kill": ["Asphalt8.exe", "Asphalt8Airborne.exe"],
+        "aliases": ["asphalt 8", "asphalt", "asphalt8", "racing game", "car game"]
+    },
+    "cricket": {
+        "name": "World Cricket Championship 2 (WCC2)",
+        "launch": r"explorer.exe shell:AppsFolder\NextwaveMultimediaPvtLtd.WCC2_jxdd5nhqtb94j!App",
+        "kill": ["WCC2.exe", "WorldCricketChampionship2.exe"],
+        "aliases": ["wcc2", "cricket", "cricket game", "world cricket championship", "wcc 2"]
+    },
+    "solitaire": {
+        "name": "Solitaire & Casual Games",
+        "launch": r"explorer.exe shell:AppsFolder\Microsoft.MicrosoftSolitaireCollection_8wekyb3d8bbwe!App",
+        "kill": ["Solitaire.exe"],
+        "aliases": ["solitaire", "cards", "solitaire game"]
+    },
+
+    # 7. Utilities & Diagnostics
+    "anydesk": {
+        "name": "AnyDesk",
+        "launch": r"C:\Program Files (x86)\AnyDesk\AnyDesk.exe",
+        "kill": ["AnyDesk.exe"],
+        "aliases": ["anydesk", "any desk", "remote desktop"]
+    },
+    "avro keyboard": {
+        "name": "Avro Keyboard",
+        "launch": r"C:\Program Files (x86)\Avro Keyboard\Avro Keyboard.exe",
+        "kill": ["Avro Keyboard.exe"],
+        "aliases": ["avro", "avro keyboard", "bangla keyboard", "avrokeyboard"]
+    },
+    "winrar": {
+        "name": "WinRAR",
+        "launch": r"C:\Program Files\WinRAR\WinRAR.exe",
+        "kill": ["WinRAR.exe"],
+        "aliases": ["winrar", "rar", "unzip", "archive", "zip"]
+    },
+    "wiztree": {
+        "name": "WizTree Disk Analyzer",
+        "launch": r"C:\Program Files\WizTree\WizTree64.exe",
+        "kill": ["WizTree64.exe", "WizTree.exe"],
+        "aliases": ["wiztree", "disk analyzer", "disk space", "wiz tree"]
+    },
+    "free download manager": {
+        "name": "Free Download Manager",
+        "launch": r"C:\Program Files\Softdeluxe\Free Download Manager\fdm.exe",
+        "kill": ["fdm.exe"],
+        "aliases": ["fdm", "free download manager", "download manager", "freedownloadmanager"]
+    },
+    "quicklook": {
+        "name": "QuickLook",
+        "launch": r"explorer.exe shell:AppsFolder\21090PaddyXu.QuickLook_egxr34yet59cg!Main",
+        "kill": ["QuickLook.exe"],
+        "aliases": ["quicklook", "quick look"]
+    },
+    "lively wallpaper": {
+        "name": "Lively Wallpaper",
+        "launch": r"explorer.exe shell:AppsFolder\12030rocksdanister.LivelyWallpaper_97hta09mmv6hy!App",
+        "kill": ["Lively.exe", "Lively.UI.WinUI.exe", "Lively.Common.exe"],
+        "aliases": ["lively wallpaper", "lively", "live wallpaper"]
+    },
+    "cpu-z": {
+        "name": "CPUID CPU-Z",
+        "launch": r"C:\Program Files\CPUID\CPU-Z\cpuz.exe",
+        "kill": ["cpuz.exe"],
+        "aliases": ["cpu-z", "cpuz", "cpu info", "cpuid"]
+    },
+    "crystaldiskinfo": {
+        "name": "CrystalDiskInfo",
+        "launch": r"C:\Program Files\CrystalDiskInfo\DiskInfo64.exe",
+        "kill": ["DiskInfo64.exe", "DiskInfo32.exe"],
+        "aliases": ["crystaldiskinfo", "crystal disk", "disk health", "diskinfo"]
+    },
+    "hwinfo": {
+        "name": "HWiNFO64",
+        "launch": r"C:\Program Files\HWiNFO64\HWiNFO64.EXE",
+        "kill": ["HWiNFO64.EXE", "HWiNFO32.EXE"],
+        "aliases": ["hwinfo", "hwinfo64", "hardware info"]
+    },
+
+    # 8. Built-in Windows Accessories & Management
+    "calculator": {
+        "name": "Calculator",
+        "launch": "calc",
+        "kill": ["CalculatorApp.exe", "calc.exe"],
+        "aliases": ["calculator", "calc", "math"]
+    },
+    "notepad": {
+        "name": "Notepad",
+        "launch": "notepad",
+        "kill": ["notepad.exe"],
+        "aliases": ["notepad", "notes", "text editor"]
+    },
+    "wordpad": {
+        "name": "WordPad",
+        "launch": "wordpad",
+        "kill": ["wordpad.exe"],
+        "aliases": ["wordpad"]
+    },
+    "paint": {
+        "name": "Paint",
+        "launch": "mspaint",
+        "kill": ["mspaint.exe", "PaintStudio.View.exe"],
+        "aliases": ["paint", "paint 3d", "drawing", "mspaint"]
+    },
+    "snipping tool": {
+        "name": "Snipping Tool",
+        "launch": "snippingtool",
+        "kill": ["SnippingTool.exe", "ScreenClippingHost.exe"],
+        "aliases": ["snipping tool", "snip", "screenshot tool", "snippingtool"]
+    },
+    "settings": {
+        "name": "Windows Settings",
+        "launch": "cmd.exe /c start ms-settings:",
+        "kill": ["SystemSettings.exe"],
+        "aliases": ["settings", "windows settings", "preferences"]
+    },
+    "control panel": {
+        "name": "Control Panel",
+        "launch": "control",
+        "kill": ["control.exe"],
+        "aliases": ["control panel", "control"]
+    },
+    "task manager": {
+        "name": "Task Manager",
+        "launch": "taskmgr",
+        "kill": ["taskmgr.exe", "Taskmgr.exe"],
+        "aliases": ["task manager", "taskmgr", "tasks", "activity monitor"]
+    },
+    "file explorer": {
+        "name": "File Explorer",
+        "launch": "explorer",
+        "kill": ["explorer.exe"],
+        "aliases": ["explorer", "file explorer", "files", "this pc", "my computer", "file manager"]
+    },
+    "command prompt": {
+        "name": "Command Prompt",
+        "launch": "cmd.exe",
+        "kill": ["cmd.exe"],
+        "aliases": ["cmd", "command prompt", "terminal", "console"]
+    },
+    "powershell": {
+        "name": "Windows PowerShell",
+        "launch": "powershell.exe",
+        "kill": ["powershell.exe"],
+        "aliases": ["powershell", "ps"]
+    },
+    "windows terminal": {
+        "name": "Windows Terminal",
+        "launch": "wt",
+        "kill": ["WindowsTerminal.exe"],
+        "aliases": ["windows terminal", "wt"]
+    },
+    "registry editor": {
+        "name": "Registry Editor",
+        "launch": "regedit",
+        "kill": ["regedit.exe"],
+        "aliases": ["regedit", "registry editor", "registry"]
+    },
+    "device manager": {
+        "name": "Device Manager",
+        "launch": "devmgmt.msc",
+        "kill": ["mmc.exe"],
+        "aliases": ["device manager", "devices"]
+    },
+    "disk management": {
+        "name": "Disk Management",
+        "launch": "diskmgmt.msc",
+        "kill": ["mmc.exe"],
+        "aliases": ["disk management", "partition"]
+    },
+    "services": {
+        "name": "Windows Services",
+        "launch": "services.msc",
+        "kill": ["mmc.exe"],
+        "aliases": ["services", "windows services"]
+    },
+    "event viewer": {
+        "name": "Event Viewer",
+        "launch": "eventvwr.msc",
+        "kill": ["mmc.exe"],
+        "aliases": ["event viewer", "events", "logs"]
+    },
+    "resource monitor": {
+        "name": "Resource Monitor",
+        "launch": "resmon.exe",
+        "kill": ["resmon.exe"],
+        "aliases": ["resource monitor", "resmon"]
+    },
+    "performance monitor": {
+        "name": "Performance Monitor",
+        "launch": "perfmon.msc",
+        "kill": ["mmc.exe", "perfmon.exe"],
+        "aliases": ["performance monitor", "perfmon"]
+    },
+    "disk cleanup": {
+        "name": "Disk Cleanup",
+        "launch": "cleanmgr.exe",
+        "kill": ["cleanmgr.exe"],
+        "aliases": ["disk cleanup", "cleanmgr", "clean disk"]
+    },
+    "windows security": {
+        "name": "Windows Security",
+        "launch": "cmd.exe /c start windowsdefender:",
+        "kill": ["SecHealthUI.exe"],
+        "aliases": ["windows security", "defender", "antivirus", "security"]
+    },
+    "microsoft store": {
+        "name": "Microsoft Store",
+        "launch": "cmd.exe /c start ms-windows-store:",
+        "kill": ["WinStore.App.exe"],
+        "aliases": ["microsoft store", "store", "app store", "windows store"]
+    },
+    "weather": {
+        "name": "Weather",
+        "launch": "cmd.exe /c start bingweather:",
+        "kill": ["BingWeather.exe"],
+        "aliases": ["weather", "forecast"]
+    },
+    "clock": {
+        "name": "Clock & Alarms",
+        "launch": "cmd.exe /c start ms-clock:",
+        "kill": ["Time.exe"],
+        "aliases": ["clock", "alarm", "alarms", "timer", "stopwatch"]
+    },
+    "sticky notes": {
+        "name": "Sticky Notes",
+        "launch": r"explorer.exe shell:AppsFolder\Microsoft.MicrosoftStickyNotes_8wekyb3d8bbwe!App",
+        "kill": ["Microsoft.Notes.exe"],
+        "aliases": ["sticky notes", "stickynotes", "sticky note"]
+    },
+    "character map": {
+        "name": "Character Map",
+        "launch": "charmap",
+        "kill": ["charmap.exe"],
+        "aliases": ["character map", "charmap"]
+    },
+    "magnifier": {
+        "name": "Magnifier",
+        "launch": "magnify",
+        "kill": ["magnify.exe"],
+        "aliases": ["magnifier", "zoom in screen"]
+    },
+    "on-screen keyboard": {
+        "name": "On-Screen Keyboard",
+        "launch": "osk",
+        "kill": ["osk.exe"],
+        "aliases": ["on-screen keyboard", "osk", "virtual keyboard"]
+    }
+}
+
+# Precompile fast lookup dictionaries
+LAUNCH_TARGETS = {}
+KILL_TARGETS = {}
+
+for app_id, meta in APP_REGISTRY.items():
+    LAUNCH_TARGETS[app_id.lower()] = meta["launch"]
+    KILL_TARGETS[app_id.lower()] = meta["kill"]
+    for alias in meta.get("aliases", []):
+        LAUNCH_TARGETS[alias.lower()] = meta["launch"]
+        KILL_TARGETS[alias.lower()] = meta["kill"]
+
+def list_registered_apps():
+    """Returns a structured catalog of all registered applications on the user's PC."""
+    items = []
+    for app_id, meta in sorted(APP_REGISTRY.items(), key=lambda x: x[1]["name"].lower()):
+        items.append({
+            "id": app_id,
+            "name": meta["name"],
+            "launch": meta["launch"],
+            "killProcesses": meta["kill"],
+            "aliases": meta.get("aliases", [])
+        })
+    return {"success": True, "count": len(items), "apps": items}
 
 def web_search(engine, query):
     """Searches Google or YouTube in the user's default browser on the interactive desktop."""
@@ -385,74 +819,16 @@ def launch_application(target, args=""):
     """Launches an application, tool, URL, or shell path with foreground focus on real desktop."""
     attach_to_user_desktop()
     target = target.strip()
-    
-    # Common app & web aliases
+    target_lower = target.lower()
+
+    # Common web & folder aliases
     aliases = {
-        # Browsers
-        "microsoft edge": "msedge",
-        "edge": "msedge",
-        "google chrome": "chrome",
-        "chrome": "chrome",
-        "brave": "brave",
-        "firefox": "firefox",
-        "opera": "opera",
-        # Windows built-in tools
-        "calculator": "calc",
-        "calc": "calc",
-        "notepad": "notepad",
-        "notes": "notepad",
-        "file explorer": "explorer",
-        "explorer": "explorer",
-        "files": "explorer",
-        "my computer": "explorer",
-        "this pc": "explorer",
-        "vs code": "code",
-        "vscode": "code",
-        "code": "code",
-        "terminal": "wt",
-        "windows terminal": "wt",
-        "cmd": "cmd.exe",
-        "command prompt": "cmd.exe",
-        "powershell": "powershell.exe",
-        "task manager": "taskmgr",
-        "taskmgr": "taskmgr",
-        "settings": "ms-settings:",
-        "windows settings": "ms-settings:",
-        "control panel": "control",
-        "paint": "mspaint",
-        "paint 3d": "mspaint",
-        "snipping tool": "snippingtool",
-        "snip": "snippingtool",
-        "camera": "microsoft.windows.camera:",
-        "photos": "ms-photos:",
-        "registry editor": "regedit",
-        "regedit": "regedit",
-        "device manager": "devmgmt.msc",
-        "disk management": "diskmgmt.msc",
-        "services": "services.msc",
-        "event viewer": "eventvwr.msc",
-        # Productivity
-        "word": "winword",
-        "excel": "excel",
-        "powerpoint": "powerpnt",
-        "ppt": "powerpnt",
-        # Media & social
-        "spotify": "spotify",
-        "vlc": "vlc",
-        "media player": "vlc",
-        "whatsapp": "whatsapp:",
-        "discord": "discord:",
-        "telegram": "telegram",
-        "steam": "steam:",
-        "slack": "slack",
-        "teams": "teams",
-        "zoom": "zoom",
-        # Common sites
+        # Popular sites
         "youtube": "https://www.youtube.com",
         "google": "https://www.google.com",
         "github": "https://www.github.com",
         "gmail": "https://mail.google.com",
-        "chatgpt": "https://chatgpt.com",
+        "chatgpt web": "https://chatgpt.com",
         "reddit": "https://www.reddit.com",
         "twitter": "https://x.com",
         "x": "https://x.com",
@@ -472,7 +848,7 @@ def launch_application(target, args=""):
         "music": os.path.expandvars("%USERPROFILE%\\Music"),
     }
 
-    # Detect installed browser & app paths
+    # Detect installed browser
     chrome_paths = [
         r"C:\Program Files\Google\Chrome\Application\chrome.exe",
         r"C:\Program Files (x86)\Google\Chrome\Application\chrome.exe",
@@ -482,28 +858,15 @@ def launch_application(target, args=""):
     for cp in chrome_paths:
         if os.path.exists(cp):
             detected_chrome = cp
-            aliases["chrome"] = cp
-            aliases["google chrome"] = cp
             break
 
-    code_paths = [
-        os.path.expandvars(r"%LOCALAPPDATA%\Programs\Microsoft VS Code\Code.exe"),
-        r"C:\Program Files\Microsoft VS Code\Code.exe",
-        r"C:\Program Files (x86)\Microsoft VS Code\Code.exe"
-    ]
-    for cdp in code_paths:
-        if os.path.exists(cdp):
-            aliases["code"] = cdp
-            aliases["vs code"] = cdp
-            aliases["vscode"] = cdp
-            break
+    # Resolve target from APP_REGISTRY first, then aliases, then raw target
+    resolved = LAUNCH_TARGETS.get(target_lower, aliases.get(target_lower, target))
 
-    resolved = aliases.get(target.lower(), target)
-
-    # If it looks like a domain without scheme (e.g. "youtube.com"), prepend https://
-    if "." in resolved and not resolved.startswith(("http://", "https://", "file://", "ms-", "calc", "notepad")):
-        if not os.path.exists(resolved):
-            resolved = "https://" + resolved
+    # If it looks like a website / domain (e.g. "youtube.com", "google.com"), prepend https://
+    web_tlds = (".com", ".org", ".net", ".io", ".ai", ".edu", ".gov", ".co", ".app", ".dev", ".tv", ".me", ".info", ".biz")
+    if (resolved.startswith("www.") or any(resolved.lower().endswith(tld) or f"{tld}/" in resolved.lower() for tld in web_tlds)) and not resolved.startswith(("http://", "https://")):
+        resolved = "https://" + resolved
 
     # 1. URLs: Open directly in Chrome if installed, or default browser on WinSta0\default
     if resolved.startswith(("http://", "https://")):
@@ -521,14 +884,22 @@ def launch_application(target, args=""):
         if launch_process_on_desktop(cmd):
             return {"success": True, "message": f"Successfully launched '{resolved}'", "target": resolved}
 
-    # 3. System command / protocol / app: Launch via start on WinSta0\default
+    # 3. Shell folder command (e.g. explorer.exe shell:AppsFolder\...)
+    if resolved.startswith("explorer.exe ") or resolved.startswith("cmd.exe "):
+        cmd = resolved
+        if args:
+            cmd += f' {args}'
+        if launch_process_on_desktop(cmd):
+            return {"success": True, "message": f"Successfully launched '{resolved}'", "target": resolved}
+
+    # 4. System command / protocol / app: Launch via start on WinSta0\default
     cmd = f'cmd.exe /c start "" "{resolved}"'
     if args:
         cmd += f' {args}'
     if launch_process_on_desktop(cmd):
         return {"success": True, "message": f"Successfully launched '{resolved}'", "target": resolved}
 
-    # 4. Fallback: win32api ShellExecute
+    # 5. Fallback: win32api ShellExecute
     try:
         import win32api, win32con
         hInst = win32api.ShellExecute(0, "open", resolved, args, None, win32con.SW_SHOWNORMAL)
@@ -537,7 +908,7 @@ def launch_application(target, args=""):
     except Exception:
         pass
 
-    # 5. Last resort: os.startfile
+    # 6. Last resort: os.startfile
     try:
         os.startfile(resolved)
         return {"success": True, "message": f"Successfully launched '{resolved}'", "target": resolved}
@@ -656,8 +1027,8 @@ def main():
 
     # app
     app_p = subparsers.add_parser("app")
-    app_p.add_argument("action", choices=["launch", "close"])
-    app_p.add_argument("target")
+    app_p.add_argument("action", choices=["launch", "close", "list"])
+    app_p.add_argument("target", nargs="?", default="")
     app_p.add_argument("--args", default="")
 
     # file
@@ -690,7 +1061,9 @@ def main():
         else:
             result = kill_process(args.target, args.force)
     elif args.command == "app":
-        if args.action == "launch":
+        if args.action == "list":
+            result = list_registered_apps()
+        elif args.action == "launch":
             result = launch_application(args.target, args.args)
         else:
             result = kill_process(args.target, force=True)

@@ -47,90 +47,242 @@ function normalizeInput(raw: string): string {
  * Common app target aliases mapping spoken/conversational terms to executable targets
  */
 const APP_ALIASES: Record<string, string> = {
-  // Code
-  'code': 'code',
-  'vs code': 'code',
-  'vscode': 'code',
-  'visual studio code': 'code',
-  'editor': 'code',
-  'code editor': 'code',
-  'ide': 'code',
-  // Browsers
-  'browser': 'chrome',
-  'internet': 'chrome',
-  'web': 'chrome',
+  // 1. Browsers
   'chrome': 'chrome',
   'google chrome': 'chrome',
-  'edge': 'msedge',
-  'microsoft edge': 'msedge',
+  'googlechrome': 'chrome',
+  'browser': 'chrome',
+  'web browser': 'chrome',
+  'internet': 'chrome',
+  'web': 'chrome',
+  'edge': 'edge',
+  'microsoft edge': 'edge',
+  'ms edge': 'edge',
+  'msedge': 'edge',
+  'internet explorer': 'internet explorer',
+  'ie': 'internet explorer',
   'brave': 'brave',
   'firefox': 'firefox',
   'opera': 'opera',
   'yt': 'youtube',
-  // Built-in tools
-  'calc': 'calc',
-  'calculator': 'calc',
-  'math': 'calc',
-  'notepad': 'notepad',
-  'notes': 'notepad',
-  'text editor': 'notepad',
-  'terminal': 'wt',
-  'command prompt': 'cmd.exe',
-  'cmd': 'cmd.exe',
-  'powershell': 'powershell.exe',
-  'shell': 'wt',
-  'explorer': 'explorer',
-  'file explorer': 'explorer',
-  'files': 'explorer',
-  'file manager': 'explorer',
-  'my computer': 'explorer',
-  'this pc': 'explorer',
-  'task manager': 'taskmgr',
-  'taskmgr': 'taskmgr',
-  'tasks': 'taskmgr',
-  'activity monitor': 'taskmgr',
-  'settings': 'ms-settings:',
-  'windows settings': 'ms-settings:',
-  'preferences': 'ms-settings:',
-  'control panel': 'control',
-  'paint': 'mspaint',
-  'mspaint': 'mspaint',
-  'drawing': 'mspaint',
-  'snipping tool': 'snippingtool',
-  'snip': 'snippingtool',
-  'camera': 'microsoft.windows.camera:',
-  'photos': 'ms-photos:',
-  // Productivity
-  'word': 'winword',
-  'ms word': 'winword',
-  'excel': 'excel',
-  'powerpoint': 'powerpnt',
-  // Media & Chat
-  'spotify': 'spotify',
-  'music': 'spotify',
-  'music app': 'spotify',
-  'tunes': 'spotify',
-  'vlc': 'vlc',
-  'media player': 'vlc',
-  'discord': 'discord',
+
+  // 2. Social, Chat & Communication
   'whatsapp': 'whatsapp',
+  'wa': 'whatsapp',
+  'whatsapp desktop': 'whatsapp',
+  'chatgpt': 'chatgpt',
+  'chat gpt': 'chatgpt',
+  'gpt': 'chatgpt',
+  'openai': 'chatgpt',
+  'chatgpt desktop': 'chatgpt',
+  'skype': 'skype',
+  'phone link': 'phone link',
+  'your phone': 'phone link',
+  'phone': 'phone link',
+  'phonelink': 'phone link',
+  'discord': 'discord',
   'telegram': 'telegram',
-  'steam': 'steam',
   'slack': 'slack',
   'teams': 'teams',
   'zoom': 'zoom',
-  // Folders
-  'downloads': 'downloads',
-  'downloads folder': 'downloads',
-  'documents': 'documents',
-  'documents folder': 'documents',
-  'docs': 'documents',
-  'desktop': 'desktop',
-  'desktop folder': 'desktop',
-  'pictures': 'pictures',
-  'photos folder': 'pictures',
-  'videos': 'videos',
-  // Sites
+
+  // 3. Microsoft Office & Productivity
+  'word': 'word',
+  'ms word': 'word',
+  'microsoft word': 'word',
+  'word 2013': 'word',
+  'winword': 'word',
+  'excel': 'excel',
+  'ms excel': 'excel',
+  'microsoft excel': 'excel',
+  'excel 2013': 'excel',
+  'powerpoint': 'powerpoint',
+  'power point': 'powerpoint',
+  'ppt': 'powerpoint',
+  'powerpnt': 'powerpoint',
+  'powerpoint 2013': 'powerpoint',
+  'presentation': 'powerpoint',
+  'onenote': 'onenote',
+  'one note': 'onenote',
+  'onenote 2013': 'onenote',
+  'outlook': 'outlook',
+  'email': 'outlook',
+  'mail': 'outlook',
+  'ms outlook': 'outlook',
+  'outlook 2013': 'outlook',
+
+  // 4. Developer Tools & IDEs
+  'android studio': 'android studio',
+  'studio': 'android studio',
+  'androidstudio': 'android studio',
+  'vs code': 'vs code',
+  'vscode': 'vs code',
+  'code': 'vs code',
+  'visual studio code': 'vs code',
+  'editor': 'vs code',
+  'code editor': 'vs code',
+  'ide': 'vs code',
+  'antigravity': 'antigravity',
+  'jarvis': 'antigravity',
+  'farhan ai': 'antigravity',
+  'git bash': 'git bash',
+  'gitbash': 'git bash',
+  'bash': 'git bash',
+  'git gui': 'git gui',
+  'gitgui': 'git gui',
+  'git cmd': 'git cmd',
+  'gitcmd': 'git cmd',
+  'python idle': 'python idle',
+  'idle': 'python idle',
+  'python': 'python idle',
+  'node': 'node',
+  'nodejs': 'node',
+  'visual studio installer': 'visual studio installer',
+  'vs installer': 'visual studio installer',
+
+  // 5. Media, Audio & Video
+  'vlc': 'vlc',
+  'vlc player': 'vlc',
+  'vlc media player': 'vlc',
+  'video player': 'vlc',
+  'fxsound': 'fxsound',
+  'fx sound': 'fxsound',
+  'equalizer': 'fxsound',
+  'sound equalizer': 'fxsound',
+  'audio boost': 'fxsound',
+  'windows media player': 'windows media player',
+  'media player': 'windows media player',
+  'wmplayer': 'windows media player',
+  'movies and tv': 'movies and tv',
+  'movies & tv': 'movies and tv',
+  'movies': 'movies and tv',
+  'tv': 'movies and tv',
+  'voice recorder': 'voice recorder',
+  'sound recorder': 'voice recorder',
+  'recorder': 'voice recorder',
+  'camera': 'camera',
+  'webcam': 'camera',
+  'photos': 'photos',
+  'pictures': 'photos',
+  'gallery': 'photos',
+  'spotify': 'spotify',
+  'music': 'spotify',
+
+  // 6. Games & Gaming
+  'tlauncher': 'tlauncher',
+  'minecraft': 'tlauncher',
+  'tl': 'tlauncher',
+  'roblox': 'roblox',
+  'roblox studio': 'roblox',
+  'asphalt 8': 'asphalt 8',
+  'asphalt': 'asphalt 8',
+  'asphalt8': 'asphalt 8',
+  'racing game': 'asphalt 8',
+  'cricket': 'cricket',
+  'wcc2': 'cricket',
+  'wcc 2': 'cricket',
+  'cricket game': 'cricket',
+  'world cricket championship': 'cricket',
+  'solitaire': 'solitaire',
+  'cards': 'solitaire',
+
+  // 7. Utilities & Diagnostics
+  'anydesk': 'anydesk',
+  'any desk': 'anydesk',
+  'remote desktop': 'anydesk',
+  'avro': 'avro keyboard',
+  'avro keyboard': 'avro keyboard',
+  'bangla keyboard': 'avro keyboard',
+  'winrar': 'winrar',
+  'rar': 'winrar',
+  'unzip': 'winrar',
+  'zip': 'winrar',
+  'wiztree': 'wiztree',
+  'disk analyzer': 'wiztree',
+  'disk space': 'wiztree',
+  'wiz tree': 'wiztree',
+  'fdm': 'free download manager',
+  'free download manager': 'free download manager',
+  'download manager': 'free download manager',
+  'quicklook': 'quicklook',
+  'quick look': 'quicklook',
+  'lively wallpaper': 'lively wallpaper',
+  'lively': 'lively wallpaper',
+  'live wallpaper': 'lively wallpaper',
+  'cpu-z': 'cpu-z',
+  'cpuz': 'cpu-z',
+  'cpu info': 'cpu-z',
+  'crystaldiskinfo': 'crystaldiskinfo',
+  'crystal disk': 'crystaldiskinfo',
+  'disk health': 'crystaldiskinfo',
+  'hwinfo': 'hwinfo',
+  'hwinfo64': 'hwinfo',
+  'hardware info': 'hwinfo',
+
+  // 8. Built-in Windows Accessories & Tools
+  'calc': 'calculator',
+  'calculator': 'calculator',
+  'math': 'calculator',
+  'notepad': 'notepad',
+  'notes': 'notepad',
+  'wordpad': 'wordpad',
+  'paint': 'paint',
+  'paint 3d': 'paint',
+  'drawing': 'paint',
+  'snipping tool': 'snipping tool',
+  'snip': 'snipping tool',
+  'settings': 'settings',
+  'windows settings': 'settings',
+  'preferences': 'settings',
+  'control panel': 'control panel',
+  'control': 'control panel',
+  'task manager': 'task manager',
+  'taskmgr': 'task manager',
+  'tasks': 'task manager',
+  'activity monitor': 'task manager',
+  'explorer': 'file explorer',
+  'file explorer': 'file explorer',
+  'files': 'file explorer',
+  'file manager': 'file explorer',
+  'my computer': 'file explorer',
+  'this pc': 'file explorer',
+  'terminal': 'command prompt',
+  'command prompt': 'command prompt',
+  'cmd': 'command prompt',
+  'powershell': 'powershell',
+  'ps': 'powershell',
+  'windows terminal': 'windows terminal',
+  'wt': 'windows terminal',
+  'registry editor': 'registry editor',
+  'regedit': 'registry editor',
+  'device manager': 'device manager',
+  'disk management': 'disk management',
+  'services': 'services',
+  'event viewer': 'event viewer',
+  'resource monitor': 'resource monitor',
+  'resmon': 'resource monitor',
+  'performance monitor': 'performance monitor',
+  'disk cleanup': 'disk cleanup',
+  'cleanmgr': 'disk cleanup',
+  'windows security': 'windows security',
+  'defender': 'windows security',
+  'antivirus': 'windows security',
+  'microsoft store': 'microsoft store',
+  'store': 'microsoft store',
+  'app store': 'microsoft store',
+  'weather': 'weather',
+  'clock': 'clock',
+  'alarm': 'clock',
+  'timer': 'clock',
+  'sticky notes': 'sticky notes',
+  'stickynotes': 'sticky notes',
+  'character map': 'character map',
+  'charmap': 'character map',
+  'magnifier': 'magnifier',
+  'on-screen keyboard': 'on-screen keyboard',
+  'osk': 'on-screen keyboard',
+
+  // 9. Web Sites
   'youtube': 'youtube',
   'google': 'google',
   'github': 'github',
@@ -138,9 +290,10 @@ const APP_ALIASES: Record<string, string> = {
   'twitter': 'twitter',
   'x': 'x',
   'gmail': 'gmail',
-  'chatgpt': 'chatgpt',
   'netflix': 'netflix',
   'amazon': 'amazon',
+  'downloads': 'downloads',
+  'documents': 'documents',
 };
 
 /**
@@ -793,12 +946,13 @@ export async function tryFastPathRoute(userPrompt: string): Promise<FastPathMatc
   }
 
   // ---------------------------------------------------------------------------
-  // 8. Application Launching (Semantic Synonyms & Prefixes)
+  // 8. Application Launching (Explicit Verbs & Prefixes)
   // ---------------------------------------------------------------------------
   const launchMatch = normalized.match(/^(?:open|opening|launch|launching|start|starting|run|running|switch\s+to|bring\s+up|show\s+me|fire\s+up|let(?:'s|\s+us)\s+(?:open|opening|use)|go\s+to)\s+(.+)$/i);
   if (launchMatch) {
     const rawTarget = launchMatch[1].trim();
-    if (!rawTarget.startsWith('how') && !rawTarget.startsWith('why') && !rawTarget.startsWith('what')) {
+    const isQuestion = /^(?:how|why|what\s|what's)\b/i.test(rawTarget);
+    if (!isQuestion) {
       const cleanTarget = cleanAppTarget(rawTarget);
       if (cleanTarget) {
         const res = await runPcController(['app', 'launch', cleanTarget]);
@@ -824,49 +978,25 @@ export async function tryFastPathRoute(userPrompt: string): Promise<FastPathMatc
               },
             ],
           };
+        } else {
+          return {
+            matched: true,
+            actionName: 'launch_app',
+            answer: `Could not launch **${cleanTarget}**: ${res.error || 'Application target not found'}.`,
+          };
         }
       }
     }
   }
 
-  // Standalone app / site / tool mentions without explicit verbs (e.g. user simply says "youtube", "chrome", "calculator", "calc", "notepad", "code", "vscode", "spotify", "cmd", "terminal")
-  const directApp = APP_ALIASES[normalized] || (normalized === 'youtube' ? 'youtube' : null);
-  const isKnownApp = Boolean(directApp) || ['chrome', 'google chrome', 'youtube', 'calculator', 'calc', 'notepad', 'code', 'vscode', 'terminal', 'cmd', 'spotify', 'task manager', 'taskmgr', 'settings', 'control panel', 'paint', 'snipping tool', 'snip'].includes(normalized);
-  if (isKnownApp) {
-    const targetToLaunch = directApp || normalized;
-    const res = await runPcController(['app', 'launch', targetToLaunch]);
-    if (res.success) {
-      return {
-        matched: true,
-        actionName: 'launch_app',
-        answer: `I've opened **${targetToLaunch}** for you.`,
-        steps: [
-          {
-            type: 'reasoning',
-            step: 'intent_resolution',
-            status: 'completed',
-            title: 'Fast-Path: Application Launch',
-            details: `Launched '${targetToLaunch}' with foreground focus (0 tokens).`,
-          },
-          {
-            type: 'tool_result',
-            step: 'tool_execution',
-            status: 'completed',
-            title: `Launched ${targetToLaunch}`,
-            data: res,
-          },
-        ],
-      };
-    }
-  }
-
   // ---------------------------------------------------------------------------
-  // 9. Application Closing / Terminating
+  // 9. Application Closing / Terminating (Explicit Verbs)
   // ---------------------------------------------------------------------------
-  const closeMatch = normalized.match(/^(?:close|closing|quit|quitting|kill|killing|terminate|terminating|stop|stopping|exit|shut\s+down|shutting\s+down|get\s+rid\s+of|end)\s+(.+)$/i);
+  const closeMatch = normalized.match(/^(?:close|closing|quit|quitting|kill|killing|terminate|terminating|stop|stopping|exit|exiting|shut\s+down|shutting\s+down|force\s+close|force\s+kill|get\s+rid\s+of|end)\s+(?:the\s+app\s+|app\s+|process\s+)?(.+)$/i);
   if (closeMatch) {
     const rawTarget = closeMatch[1].trim();
-    if (!rawTarget.startsWith('how') && !rawTarget.startsWith('why') && !rawTarget.startsWith('what')) {
+    const isQuestion = /^(?:how|why|what\s|what's)\b/i.test(rawTarget);
+    if (!isQuestion) {
       const cleanTarget = cleanAppTarget(rawTarget);
       if (cleanTarget) {
         const res = await runPcController(['app', 'close', cleanTarget]);
@@ -886,10 +1016,14 @@ export async function tryFastPathRoute(userPrompt: string): Promise<FastPathMatc
             ],
           };
         } else {
+          const isNotRunning = typeof res.error === 'string' && (res.error.toLowerCase().includes('not found') || res.error.toLowerCase().includes('could not find'));
+          const answer = isNotRunning
+            ? `**${cleanTarget}** is not currently running.`
+            : `Unable to close **${cleanTarget}**: ${res.error || 'Process not found'}.`;
           return {
             matched: true,
             actionName: 'close_app',
-            answer: `Unable to close '${cleanTarget}': ${res.error || 'Process not found'}.`,
+            answer,
           };
         }
       }
@@ -897,7 +1031,42 @@ export async function tryFastPathRoute(userPrompt: string): Promise<FastPathMatc
   }
 
   // ---------------------------------------------------------------------------
-  // 10. Create Folder / Directory
+  // 10. Standalone Application / Site Mentions (e.g. "word", "whatsapp", "vlc")
+  // ---------------------------------------------------------------------------
+  const isClosingPhrase = /^(?:close|quit|kill|stop|exit|terminate|shut|end)\b/i.test(normalized);
+  if (!isClosingPhrase) {
+    const directApp = APP_ALIASES[normalized] || APP_ALIASES[cleanAppTarget(normalized)];
+    if (directApp) {
+      const targetToLaunch = directApp;
+      const res = await runPcController(['app', 'launch', targetToLaunch]);
+      if (res.success) {
+        return {
+          matched: true,
+          actionName: 'launch_app',
+          answer: `I've opened **${targetToLaunch}** for you.`,
+          steps: [
+            {
+              type: 'reasoning',
+              step: 'intent_resolution',
+              status: 'completed',
+              title: 'Fast-Path: Application Launch',
+              details: `Launched '${targetToLaunch}' with foreground focus (0 tokens).`,
+            },
+            {
+              type: 'tool_result',
+              step: 'tool_execution',
+              status: 'completed',
+              title: `Launched ${targetToLaunch}`,
+              data: res,
+            },
+          ],
+        };
+      }
+    }
+  }
+
+  // ---------------------------------------------------------------------------
+  // 11. Create Folder / Directory
   // ---------------------------------------------------------------------------
   const folderMatch = clean.match(/^(?:create|make|new)\s+(?:a\s+)?(?:folder|directory)\s+(?:called\s+|named\s+)?(.+)$/i);
   if (folderMatch) {
@@ -922,7 +1091,7 @@ export async function tryFastPathRoute(userPrompt: string): Promise<FastPathMatc
   }
 
   // ---------------------------------------------------------------------------
-  // 11. Delete File / Folder
+  // 12. Delete File / Folder
   // ---------------------------------------------------------------------------
   const deleteMatch = clean.match(/^(?:delete|remove)\s+(?:file|folder)\s+(.+)$/i);
   if (deleteMatch) {
