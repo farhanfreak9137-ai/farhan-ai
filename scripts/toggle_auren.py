@@ -18,7 +18,37 @@ sys.stdout.reconfigure(encoding='utf-8', errors='replace')
 user32 = ctypes.windll.user32
 kernel32 = ctypes.windll.kernel32
 
-URL = "http://localhost:3000/voice?autostart=true&wakeword=true"
+class STARTUPINFO(ctypes.Structure):
+    _fields_ = [
+        ("cb", wintypes.DWORD),
+        ("lpReserved", wintypes.LPWSTR),
+        ("lpDesktop", wintypes.LPWSTR),
+        ("lpTitle", wintypes.LPWSTR),
+        ("dwX", wintypes.DWORD),
+        ("dwY", wintypes.DWORD),
+        ("dwXSize", wintypes.DWORD),
+        ("dwYSize", wintypes.DWORD),
+        ("dwXCountChars", wintypes.DWORD),
+        ("dwYCountChars", wintypes.DWORD),
+        ("dwFillAttribute", wintypes.DWORD),
+        ("dwFlags", wintypes.DWORD),
+        ("wShowWindow", wintypes.WORD),
+        ("cbReserved2", wintypes.WORD),
+        ("lpReserved2", ctypes.c_char_p),
+        ("hStdInput", wintypes.HANDLE),
+        ("hStdOutput", wintypes.HANDLE),
+        ("hStdError", wintypes.HANDLE),
+    ]
+
+class PROCESS_INFORMATION(ctypes.Structure):
+    _fields_ = [
+        ("hProcess", wintypes.HANDLE),
+        ("hThread", wintypes.HANDLE),
+        ("dwProcessId", wintypes.DWORD),
+        ("dwThreadId", wintypes.DWORD),
+    ]
+
+URL = "http://localhost:3000"
 
 def attach_to_desktop():
     """Attaches thread to the interactive WinSta0\\Default desktop."""
@@ -38,18 +68,16 @@ def is_auren_title(title):
     """Checks if window title belongs to Auren AI Desktop Application."""
     t = title.lower()
     
-    # Exclude development environments and shells
-    if any(ex in t for ex in ["antigravity", "visual studio", "code", "cmd.exe", "powershell", "terminal"]):
+    # Exclude development environments, shells, editors, and scripts
+    if any(ex in t for ex in ["antigravity", "visual studio", "code", ".bat", ".py", ".ts", ".json", ".md", ".vbs", "cmd.exe", "powershell", "terminal"]):
         return False
         
     # Match Auren window patterns
-    if "auren voice studio" in t or "auren ai" in t:
+    if "auren ai — personal operating system" in t or "auren voice studio" in t:
         return True
-    if "voice studio" in t and ("auren" in t or "ai" in t):
+    if "auren ai" in t and ("operating system" in t or "voice" in t or "hub" in t or "automation" in t):
         return True
-    if "voice interface" in t:
-        return True
-    if "localhost:3000" in t:
+    if "voice studio | auren ai" in t:
         return True
         
     return False
@@ -80,23 +108,10 @@ def find_auren_window():
         WNDENUMPROC = ctypes.WINFUNCTYPE(ctypes.c_bool, ctypes.c_void_p, ctypes.c_void_p)
         user32.EnumDesktopWindows(hdesk, WNDENUMPROC(w_cb), 0)
 
-    # 1. Search Default desktop
+    # 1. Search Default desktop (the user's visible desktop)
     check_desktop("Default")
 
-    # 2. If not found, check other desktops on WinSta0
-    if not found_hwnds:
-        hwinsta = user32.GetProcessWindowStation()
-        desktops = []
-        def d_cb(name, _):
-            if name.lower() != "default":
-                desktops.append(name)
-            return True
-        DESKTOPENUMPROC = ctypes.WINFUNCTYPE(ctypes.c_bool, ctypes.c_wchar_p, ctypes.c_void_p)
-        user32.EnumDesktopsW(hwinsta, DESKTOPENUMPROC(d_cb), 0)
-        for d in desktops:
-            check_desktop(d)
-
-    # 3. Fallback to standard EnumWindows
+    # 2. Fallback to standard EnumWindows
     if not found_hwnds:
         def enum_cb(hwnd, _):
             try:
@@ -202,9 +217,12 @@ def ensure_ollama_running(port=11434):
     return False
 
 def launch_auren():
-    """Launches Auren Voice Studio in standalone app mode on the interactive desktop."""
+    """Launches Auren in standalone app mode on the interactive desktop."""
     ensure_server_running(3000)
     ensure_ollama_running(11434)
+
+    profile_dir = os.path.expandvars(r"%LOCALAPPDATA%\AurenAI\app-profile")
+    os.makedirs(profile_dir, exist_ok=True)
 
     edge_paths = [
         r"C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe",
@@ -229,21 +247,44 @@ def launch_auren():
                 target_exe = p
                 break
 
-    if target_exe:
-        # Fast direct execution: avoids spawning cmd.exe, skips first-run dialogs
-        cmd_args = [
-            target_exe,
-            f'--app={URL}',
-            '--no-first-run',
-            '--no-default-browser-check',
-            '--disable-features=Translate',
-        ]
-        try:
-            subprocess.Popen(cmd_args, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-            return True
-        except Exception as e:
-            print(f"[Error launching Auren]: {e}")
+    launch_args = f'--user-data-dir="{profile_dir}" --app="{URL}" --no-first-run --no-default-browser-check'
 
+    # 1. Primary: CreateProcessW explicitly targeting WinSta0\Default interactive desktop
+    if target_exe:
+        try:
+            si = STARTUPINFO()
+            si.cb = ctypes.sizeof(STARTUPINFO)
+            si.lpDesktop = "WinSta0\\Default"
+            si.dwFlags = 1  # STARTF_USESHOWWINDOW
+            si.wShowWindow = 1  # SW_SHOWNORMAL
+            pi = PROCESS_INFORMATION()
+            full_cmd = f'"{target_exe}" {launch_args}'
+            if kernel32.CreateProcessW(None, full_cmd, None, None, False, 0, None, None, ctypes.byref(si), ctypes.byref(pi)):
+                kernel32.CloseHandle(pi.hProcess)
+                kernel32.CloseHandle(pi.hThread)
+                return True
+        except Exception as e:
+            print(f"[CreateProcess error]: {e}")
+
+    # 2. Secondary: Windows ShellExecute via win32api
+    if target_exe:
+        try:
+            import win32api, win32con
+            h = win32api.ShellExecute(0, "open", target_exe, launch_args, None, win32con.SW_SHOWNORMAL)
+            if h > 32:
+                return True
+        except Exception as e:
+            print(f"[ShellExecute error]: {e}")
+
+    # 3. Tertiary: Windows cmd start with dedicated profile
+    try:
+        cmd = f'"{target_exe}" {launch_args}' if target_exe else f'explorer.exe "{URL}"'
+        subprocess.Popen(f'start "" {cmd}', shell=True)
+        return True
+    except Exception as e:
+        print(f"[Popen start error]: {e}")
+
+    # 4. Fallback: os.startfile
     try:
         os.startfile(URL)
         return True
