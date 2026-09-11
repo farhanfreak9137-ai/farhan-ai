@@ -292,6 +292,12 @@ const APP_ALIASES: Record<string, string> = {
   'twitter': 'twitter',
   'x': 'x',
   'gmail': 'gmail',
+  'instagram': 'instagram',
+  'ig': 'instagram',
+  'facebook': 'facebook',
+  'fb': 'facebook',
+  'linkedin': 'linkedin',
+  'wikipedia': 'wikipedia',
   'netflix': 'netflix',
   'amazon': 'amazon',
   'downloads': 'downloads',
@@ -948,28 +954,45 @@ export async function tryFastPathRoute(userPrompt: string): Promise<FastPathMatc
   }
 
   // ---------------------------------------------------------------------------
-  // 8. Application Launching (Explicit Verbs & Prefixes)
+  // 8. Application & Browser Launching (Supports "open X in edge", "open X in edge and navigate to Y")
   // ---------------------------------------------------------------------------
-  const launchMatch = normalized.match(/^(?:open|opening|launch|launching|start|starting|run|running|switch\s+to|bring\s+up|show\s+me|fire\s+up|let(?:'s|\s+us)\s+(?:open|opening|use)|go\s+to)\s+(.+)$/i);
-  if (launchMatch) {
-    const rawTarget = launchMatch[1].trim();
+  const browserNavMatch = normalized.match(
+    /^(?:open|opening|launch|launching|start|starting|run|running|switch\s+to|bring\s+up|show\s+me|fire\s+up|let(?:'s|\s+us)\s+(?:open|opening|use)|go\s+to)\s+(.+?)(?:\s+in\s+(edge|chrome|msedge|microsoft edge|google chrome|browser))?(?:\s+and\s+(?:navigate\s+to|go\s+to|search\s+for)\s+(.+))?$/i
+  );
+
+  if (browserNavMatch) {
+    const rawTarget = browserNavMatch[1]?.trim() || '';
+    const specifiedBrowser = browserNavMatch[2]?.trim();
+    const navPath = browserNavMatch[3]?.trim();
     const isQuestion = /^(?:how|why|what\s|what's)\b/i.test(rawTarget);
-    if (!isQuestion) {
+
+    if (rawTarget && !isQuestion) {
       const cleanTarget = cleanAppTarget(rawTarget);
       if (cleanTarget) {
-        const res = await runPcController(['app', 'launch', cleanTarget]);
+        const pcArgs = ['app', 'launch', cleanTarget];
+        if (navPath) {
+          pcArgs.push('--args', navPath);
+        }
+        if (specifiedBrowser) {
+          const browserKey = specifiedBrowser.toLowerCase().includes('edge') ? 'edge' : 'chrome';
+          pcArgs.push('--browser', browserKey);
+        }
+
+        const res = await runPcController(pcArgs);
         if (res.success) {
+          const browserDesc = specifiedBrowser ? ` in **${specifiedBrowser}**` : '';
+          const navDesc = navPath ? ` and navigated to **${navPath}**` : '';
           return {
             matched: true,
             actionName: 'launch_app',
-            answer: `I've opened **${cleanTarget}** for you.`,
+            answer: `I've opened **${cleanTarget}**${browserDesc}${navDesc} for you.`,
             steps: [
               {
                 type: 'reasoning',
                 step: 'intent_resolution',
                 status: 'completed',
                 title: 'Fast-Path: Application Launch',
-                details: `Launched application '${cleanTarget}' with foreground focus (0 tokens).`,
+                details: `Launched '${cleanTarget}'${browserDesc}${navDesc} with foreground focus (0 tokens).`,
               },
               {
                 type: 'tool_result',
@@ -984,7 +1007,7 @@ export async function tryFastPathRoute(userPrompt: string): Promise<FastPathMatc
           return {
             matched: true,
             actionName: 'launch_app',
-            answer: `Could not launch **${cleanTarget}**: ${res.error || 'Application target not found'}.`,
+            answer: `Could not open **${cleanTarget}**: ${res.error || 'Application target not found'}.`,
           };
         }
       }

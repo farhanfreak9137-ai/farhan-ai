@@ -180,9 +180,31 @@ def ensure_server_running(port=3000):
             pass
     return False
 
+def ensure_ollama_running(port=11434):
+    """Ensures Ollama background AI engine is running."""
+    try:
+        with socket.create_connection(("127.0.0.1", port), timeout=0.2):
+            return True
+    except Exception:
+        pass
+
+    ollama_paths = [
+        os.path.expandvars(r"%LOCALAPPDATA%\Programs\Ollama\ollama app.exe"),
+        os.path.expandvars(r"%LOCALAPPDATA%\Programs\Ollama\ollama.exe"),
+    ]
+    for p in ollama_paths:
+        if os.path.isfile(p):
+            try:
+                subprocess.Popen([p], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+                break
+            except Exception:
+                pass
+    return False
+
 def launch_auren():
     """Launches Auren Voice Studio in standalone app mode on the interactive desktop."""
     ensure_server_running(3000)
+    ensure_ollama_running(11434)
 
     edge_paths = [
         r"C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe",
@@ -208,20 +230,25 @@ def launch_auren():
                 break
 
     if target_exe:
-        cmd = f'"{target_exe}" --app="{URL}"'
-    else:
-        cmd = f'explorer.exe "{URL}"'
+        # Fast direct execution: avoids spawning cmd.exe, skips first-run dialogs
+        cmd_args = [
+            target_exe,
+            f'--app={URL}',
+            '--no-first-run',
+            '--no-default-browser-check',
+            '--disable-features=Translate',
+        ]
+        try:
+            subprocess.Popen(cmd_args, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            return True
+        except Exception as e:
+            print(f"[Error launching Auren]: {e}")
 
     try:
-        subprocess.Popen(f'start "" {cmd}', shell=True)
+        os.startfile(URL)
         return True
-    except Exception as e:
-        print(f"[Error launching Auren]: {e}")
-        try:
-            os.startfile(URL)
-            return True
-        except Exception:
-            pass
+    except Exception:
+        pass
     return False
 
 def toggle_or_focus_auren():

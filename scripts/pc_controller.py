@@ -815,7 +815,7 @@ def launch_process_on_desktop(cmd_line):
     except Exception:
         return False
 
-def launch_application(target, args=""):
+def launch_application(target, args="", browser=None):
     """Launches an application, tool, URL, or shell path with foreground focus on real desktop."""
     attach_to_user_desktop()
     target = target.strip()
@@ -848,7 +848,7 @@ def launch_application(target, args=""):
         "music": os.path.expandvars("%USERPROFILE%\\Music"),
     }
 
-    # Detect installed browser
+    # Detect installed browsers
     chrome_paths = [
         r"C:\Program Files\Google\Chrome\Application\chrome.exe",
         r"C:\Program Files (x86)\Google\Chrome\Application\chrome.exe",
@@ -860,6 +860,17 @@ def launch_application(target, args=""):
             detected_chrome = cp
             break
 
+    edge_paths = [
+        r"C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe",
+        r"C:\Program Files\Microsoft\Edge\Application\msedge.exe",
+        os.path.expandvars(r"%LOCALAPPDATA%\Microsoft\Edge\Application\msedge.exe")
+    ]
+    detected_edge = None
+    for ep in edge_paths:
+        if os.path.exists(ep):
+            detected_edge = ep
+            break
+
     # Resolve target from APP_REGISTRY first, then aliases, then raw target
     resolved = LAUNCH_TARGETS.get(target_lower, aliases.get(target_lower, target))
 
@@ -868,11 +879,34 @@ def launch_application(target, args=""):
     if (resolved.startswith("www.") or any(resolved.lower().endswith(tld) or f"{tld}/" in resolved.lower() for tld in web_tlds)) and not resolved.startswith(("http://", "https://")):
         resolved = "https://" + resolved
 
-    # 1. URLs: Open directly in Chrome if installed, or default browser on WinSta0\default
+    # Handle URL navigation paths (e.g. site=instagram, args=explore -> https://www.instagram.com/explore)
+    if resolved.startswith(("http://", "https://")) and args and not args.startswith("-"):
+        clean_args = args.strip().lstrip("/")
+        if not clean_args.startswith("http"):
+            resolved = f"{resolved.rstrip('/')}/{clean_args}"
+            args = ""
+
+    # 1. URLs: Open in specified browser, or detected Edge/Chrome, or default browser
     if resolved.startswith(("http://", "https://")):
-        if detected_chrome:
+        req_browser = (browser or "").lower().strip()
+        if "edge" in req_browser and detected_edge:
+            if launch_process_on_desktop(f'"{detected_edge}" "{resolved}"'):
+                return {"success": True, "message": f"Opened '{resolved}' in Microsoft Edge.", "target": resolved}
+        elif "chrome" in req_browser and detected_chrome:
+            if launch_process_on_desktop(f'"{detected_chrome}" "{resolved}"'):
+                return {"success": True, "message": f"Opened '{resolved}' in Google Chrome.", "target": resolved}
+
+        # If no specific browser requested, prefer Edge if requested or Chrome, then default
+        if req_browser == "edge" and detected_edge:
+            if launch_process_on_desktop(f'"{detected_edge}" "{resolved}"'):
+                return {"success": True, "message": f"Opened '{resolved}' in Microsoft Edge.", "target": resolved}
+        elif detected_chrome:
             if launch_process_on_desktop(f'"{detected_chrome}" "{resolved}"'):
                 return {"success": True, "message": f"Opened '{resolved}' in Chrome.", "target": resolved}
+        elif detected_edge:
+            if launch_process_on_desktop(f'"{detected_edge}" "{resolved}"'):
+                return {"success": True, "message": f"Opened '{resolved}' in Microsoft Edge.", "target": resolved}
+
         if launch_process_on_desktop(f'cmd.exe /c start "" "{resolved}"'):
             return {"success": True, "message": f"Opened '{resolved}' in default browser.", "target": resolved}
 
@@ -1030,6 +1064,7 @@ def main():
     app_p.add_argument("action", choices=["launch", "close", "list"])
     app_p.add_argument("target", nargs="?", default="")
     app_p.add_argument("--args", default="")
+    app_p.add_argument("--browser", default=None)
 
     # file
     file_p = subparsers.add_parser("file")
@@ -1064,7 +1099,7 @@ def main():
         if args.action == "list":
             result = list_registered_apps()
         elif args.action == "launch":
-            result = launch_application(args.target, args.args)
+            result = launch_application(args.target, args.args, args.browser)
         else:
             result = kill_process(args.target, force=True)
     elif args.command == "file":

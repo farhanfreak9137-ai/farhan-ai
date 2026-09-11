@@ -45,11 +45,30 @@ export function routeRequest(messages: ChatMessage[]): RouteDecision {
     };
   }
 
-  // Rule 3: Configured primary provider priority
+  // Rule 3: Configured primary provider priority (defaults to local Ollama for unlimited offline requests)
+  const preferred = (process.env.AI_PROVIDER || process.env.PRIMARY_PROVIDER || 'ollama').toLowerCase();
+  const matchedPreferred = providers.find((p) => p.id === preferred && p.configured);
+  if (matchedPreferred) {
+    return {
+      providerId: matchedPreferred.id,
+      rationale: `Routed to primary engine (${matchedPreferred.name}) — zero token quotas.`,
+      contextSizeEstimate: totalLength,
+    };
+  }
+
+  // Fallback to Ollama if configured
+  if (providers.find((p) => p.id === 'ollama' && p.configured)) {
+    return {
+      providerId: 'ollama',
+      rationale: 'Routed to Local Ollama for unlimited requests and zero external API limits.',
+      contextSizeEstimate: totalLength,
+    };
+  }
+
   if (providers.find((p) => p.id === 'gemini' && p.configured)) {
     return {
       providerId: 'gemini',
-      rationale: 'Standard career interaction — routed to Gemini 2.5 Flash for high accuracy and fast token streaming.',
+      rationale: 'Routed to Gemini 2.5 Flash.',
       contextSizeEstimate: totalLength,
     };
   }

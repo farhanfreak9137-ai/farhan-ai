@@ -156,9 +156,12 @@ export async function streamChatWithFallback(
 ): Promise<{ stream: ReadableStream<string>; providerUsed: ProviderId }> {
   const providers = getAvailableProviders();
   
+  const defaultPreferred = (process.env.AI_PROVIDER || process.env.PRIMARY_PROVIDER || 'ollama') as ProviderId;
+  const targetPreferred = preferredId || defaultPreferred;
+
   // Prioritize preferred provider, then other configured providers, then mock
   const order: ProviderId[] = [];
-  if (preferredId && preferredId !== 'mock') order.push(preferredId);
+  if (targetPreferred && targetPreferred !== 'mock') order.push(targetPreferred);
   
   providers
     .filter((p) => p.configured && p.id !== 'mock' && !order.includes(p.id))
