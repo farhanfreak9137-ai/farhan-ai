@@ -8,6 +8,7 @@ echo [Auren] Installing Auren global shortcut (Ctrl+Alt+J)...
 
 set "SCRIPT_DIR=%~dp0"
 set "TARGET_BAT=%SCRIPT_DIR%open-auren.bat"
+set "ICON_PATH=%SCRIPT_DIR%auren.ico"
 set "DESKTOP_DIR=%USERPROFILE%\Desktop"
 set "STARTUP_PROG=%APPDATA%\Microsoft\Windows\Start Menu\Programs"
 set "DESKTOP_PATH=%DESKTOP_DIR%\Auren AI.lnk"
@@ -15,7 +16,7 @@ set "PROG_PATH=%STARTUP_PROG%\Auren AI.lnk"
 
 echo Creating shortcut on Desktop and in Start Menu Programs...
 
-powershell -NoProfile -ExecutionPolicy Bypass -Command "$ws = New-Object -ComObject WScript.Shell; foreach ($p in @('%DESKTOP_PATH%', '%PROG_PATH%')) { $s = $ws.CreateShortcut($p); $s.TargetPath = '%TARGET_BAT%'; $s.WorkingDirectory = '%SCRIPT_DIR%..'; $s.Description = 'Auren Voice Assistant & AI Companion'; $s.Hotkey = 'CTRL+ALT+J'; $s.Save() }"
+powershell -NoProfile -ExecutionPolicy Bypass -Command "$ws = New-Object -ComObject WScript.Shell; foreach ($p in @('%DESKTOP_PATH%', '%PROG_PATH%')) { $s = $ws.CreateShortcut($p); $s.TargetPath = '%TARGET_BAT%'; $s.WorkingDirectory = '%SCRIPT_DIR%..'; $s.Description = 'Auren Voice Assistant & AI Companion'; $s.Hotkey = 'CTRL+ALT+J'; $s.WindowStyle = 7; if (Test-Path '%ICON_PATH%') { $s.IconLocation = '%ICON_PATH%,0' }; $s.Save() }"
 
 if exist "%DESKTOP_PATH%" (
     echo.
