@@ -26,7 +26,7 @@ export default function VoicePage() {
             background: 'rgba(255, 255, 255, 0.05)',
           }}
         >
-          ← Back to Farhan AI Hub
+          ← Back to Auren AI Hub
         </Link>
       </div>
       <VoiceStudio />

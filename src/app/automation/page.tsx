@@ -4,7 +4,7 @@ import { AutomationDashboard } from '@/components/automation/AutomationDashboard
 import Link from 'next/link';
 
 export const metadata = {
-  title: 'Automation Engine | Farhan AI',
+  title: 'Automation Engine | Auren AI',
   description: 'Persistent background automation and scheduled opportunity monitoring',
 };
 
@@ -26,7 +26,7 @@ export default function AutomationPage() {
             background: 'rgba(255, 255, 255, 0.05)',
           }}
         >
-          ← Back to Farhan AI Hub
+          ← Back to Auren AI Hub
         </Link>
       </div>
       <AutomationDashboard />

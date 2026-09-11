@@ -29,11 +29,11 @@ export default function ComputerPage() {
               gap: '4px',
             }}
           >
-            ← Back to Farhan AI OS
+            ← Back to Auren AI OS
           </Link>
           <span style={{ color: 'var(--border-subtle)' }}>|</span>
           <span style={{ fontSize: '0.9rem', fontWeight: '700', color: '#fff' }}>
-            Farhan AI Computer Control Runtime
+            Auren AI Computer Control Runtime
           </span>
         </div>
       </header>

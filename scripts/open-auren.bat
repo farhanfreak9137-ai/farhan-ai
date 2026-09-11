@@ -6,5 +6,5 @@ REM Single-instance window focus & launcher
 REM ==============================================================================
 
 set "SCRIPT_DIR=%~dp0"
-python "%SCRIPT_DIR%toggle_auren.py"
+start "" pythonw "%SCRIPT_DIR%toggle_auren.py"
 exit /b

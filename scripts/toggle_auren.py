@@ -35,23 +35,21 @@ def attach_to_desktop():
     return None
 
 def is_auren_title(title):
-    """Checks if window title belongs to Auren Voice Studio."""
+    """Checks if window title belongs to Auren AI Desktop Application."""
     t = title.lower()
     
     # Exclude development environments and shells
-    if any(ex in t for ex in ["antigravity", "visual studio", "code", "cmd.exe", "powershell"]):
+    if any(ex in t for ex in ["antigravity", "visual studio", "code", "cmd.exe", "powershell", "terminal"]):
         return False
         
     # Match Auren window patterns
-    if "auren voice studio" in t:
-        return True
-    if "auren ai" in t and "voice" in t:
+    if "auren voice studio" in t or "auren ai" in t:
         return True
     if "voice studio" in t and ("auren" in t or "ai" in t):
         return True
     if "voice interface" in t:
         return True
-    if "localhost:3000" in t and "voice" in t:
+    if "localhost:3000" in t:
         return True
         
     return False
