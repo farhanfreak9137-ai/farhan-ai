@@ -44,12 +44,113 @@ export function VoiceStudio() {
   }, [fetchStatus]);
 
   const [wakeStatus, setWakeStatus] = useState<string | null>(null);
+  const querySeqRef = useRef(0);
+
+  const [latestResponse, setLatestResponse] = useState<{
+    text: string;
+    toolCalled?: string;
+    approvalRequired?: boolean;
+    approvalDetails?: any;
+    status: 'thinking' | 'ready';
+    providerUsed?: string;
+  } | null>(null);
+
+  // Submit voice or text command to /api/voice/command
+  const submitVoiceQuery = async (queryText: string) => {
+    if (!queryText.trim()) return;
+
+    const currentSeq = ++querySeqRef.current;
+    setTranscript(queryText);
+    setRecordingState('PROCESSING');
+    setErrorMessage(null);
+    setLatestResponse({
+      text: 'Consulting Farhan AI agents & executing tools...',
+      status: 'thinking',
+    });
+
+    const userMessage: MessageHistoryItem = {
+      id: 'msg-' + Date.now(),
+      role: 'user',
+      content: queryText,
+      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+    };
+    setHistory((prev) => [...prev, userMessage]);
+
+    try {
+      const res = await fetch('/api/voice/command', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ transcript: queryText }),
+      });
+
+      if (!res.ok) {
+        const errData = await res.json();
+        throw new Error(errData.error || 'Voice command failed to process');
+      }
+
+      const data: VoiceCommandResponse = await res.json();
+
+      // Drop stale response if another query has been issued in the meantime
+      if (currentSeq !== querySeqRef.current) {
+        console.log(`[VoiceStudio] Dropping stale response #${currentSeq}, active is #${querySeqRef.current}`);
+        return;
+      }
+
+      const toolCalled = (data as any).steps?.find(
+        (s: any) => s.title?.includes('Invoking') || s.step === 'tool_execution'
+      )?.title;
+
+      setLatestResponse({
+        text: data.responseText,
+        toolCalled: toolCalled || (data.approvalRequired ? 'Authorization Required' : undefined),
+        approvalRequired: data.approvalRequired,
+        approvalDetails: data.approvalDetails,
+        status: 'ready',
+        providerUsed: data.providerUsed,
+      });
+
+      const assistantMessage: MessageHistoryItem = {
+        id: 'msg-' + (Date.now() + 1),
+        role: 'assistant',
+        content: data.responseText,
+        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        audioData: data.responseAudio,
+        approvalRequired: data.approvalRequired,
+        approvalDetails: data.approvalDetails,
+      };
+
+      setHistory((prev) => [...prev, assistantMessage]);
+      setRecordingState('RESPONDING');
+
+      // Speech audio: use real MP3 if provided by external TTS, otherwise use browser SpeechSynthesis
+      if (data.responseAudio && data.audioFormat === 'mp3') {
+        playBase64Audio(data.responseAudio, data.audioFormat || 'mp3');
+      } else {
+        speakText(data.responseText, () => {
+          setIsPlayingAudio(false);
+          setRecordingState('IDLE');
+          if (wakeWordMode) {
+            startListening();
+          }
+        });
+        setIsPlayingAudio(true);
+      }
+    } catch (err: any) {
+      if (currentSeq !== querySeqRef.current) return;
+      console.error('Voice processing error:', err);
+      setErrorMessage(err.message || 'An error occurred while processing your voice command.');
+      setRecordingState('ERROR');
+      setLatestResponse(null);
+    }
+  };
+
+  const submitVoiceQueryRef = useRef(submitVoiceQuery);
+  submitVoiceQueryRef.current = submitVoiceQuery;
 
   // Handle final speech transcript from the browser recognition hook
   const handleFinalSpeechTranscript = useCallback(async (spokenText: string) => {
     if (!spokenText.trim()) return;
-    setTranscript(spokenText);
-    await submitVoiceQuery(spokenText);
+    await submitVoiceQueryRef.current(spokenText);
   }, []);
 
   const {
@@ -93,95 +194,6 @@ export function VoiceStudio() {
       setRecordingState('IDLE');
     }
   }, [isListening]);
-
-  const [latestResponse, setLatestResponse] = useState<{
-    text: string;
-    toolCalled?: string;
-    approvalRequired?: boolean;
-    approvalDetails?: any;
-    status: 'thinking' | 'ready';
-    providerUsed?: string;
-  } | null>(null);
-
-  // Submit voice or text command to /api/voice/command
-  const submitVoiceQuery = async (queryText: string) => {
-    if (!queryText.trim()) return;
-
-    setRecordingState('PROCESSING');
-    setErrorMessage(null);
-    setLatestResponse({
-      text: 'Consulting Farhan AI agents & executing tools...',
-      status: 'thinking',
-    });
-
-    const userMessage: MessageHistoryItem = {
-      id: 'msg-' + Date.now(),
-      role: 'user',
-      content: queryText,
-      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-    };
-    setHistory((prev) => [...prev, userMessage]);
-
-    try {
-      const res = await fetch('/api/voice/command', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ transcript: queryText }),
-      });
-
-      if (!res.ok) {
-        const errData = await res.json();
-        throw new Error(errData.error || 'Voice command failed to process');
-      }
-
-      const data: VoiceCommandResponse = await res.json();
-
-      const toolCalled = (data as any).steps?.find(
-        (s: any) => s.title?.includes('Invoking') || s.step === 'tool_execution'
-      )?.title;
-
-      setLatestResponse({
-        text: data.responseText,
-        toolCalled: toolCalled || (data.approvalRequired ? 'Authorization Required' : undefined),
-        approvalRequired: data.approvalRequired,
-        approvalDetails: data.approvalDetails,
-        status: 'ready',
-        providerUsed: data.providerUsed,
-      });
-
-      const assistantMessage: MessageHistoryItem = {
-        id: 'msg-' + (Date.now() + 1),
-        role: 'assistant',
-        content: data.responseText,
-        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-        audioData: data.responseAudio,
-        approvalRequired: data.approvalRequired,
-        approvalDetails: data.approvalDetails,
-      };
-
-      setHistory((prev) => [...prev, assistantMessage]);
-      setRecordingState('RESPONDING');
-
-      // Speech audio: use real MP3 if provided by external TTS, otherwise use browser SpeechSynthesis
-      if (data.responseAudio && data.audioFormat === 'mp3') {
-        playBase64Audio(data.responseAudio, data.audioFormat || 'mp3');
-      } else {
-        speakText(data.responseText, () => {
-          setIsPlayingAudio(false);
-          setRecordingState('IDLE');
-          if (wakeWordMode) {
-            startListening();
-          }
-        });
-        setIsPlayingAudio(true);
-      }
-    } catch (err: any) {
-      console.error('Voice processing error:', err);
-      setErrorMessage(err.message || 'An error occurred while processing your voice command.');
-      setRecordingState('ERROR');
-      setLatestResponse(null);
-    }
-  };
 
   const playBase64Audio = (base64Data: string, format: string) => {
     try {

@@ -94,15 +94,17 @@ export async function processVoiceCommand(request: VoiceCommandRequest): Promise
       }
     : undefined;
 
-  // 4. Synthesize spoken response via TTS
+  // 4. Synthesize spoken response via TTS (Bypass completely for offline fast-path to prevent cloud delays)
   let responseAudio: string | undefined;
   let audioFormat = 'wav';
-  try {
-    const tts = await provider.speak({ text: responseText, language: request.language });
-    responseAudio = tts.audioData;
-    audioFormat = tts.format;
-  } catch (err) {
-    console.warn('[VoiceAssistant] TTS synthesis error:', err);
+  if (assistantResult.providerUsed !== 'local_fastpath') {
+    try {
+      const tts = await provider.speak({ text: responseText, language: request.language });
+      responseAudio = tts.audioData;
+      audioFormat = tts.format;
+    } catch (err) {
+      console.warn('[VoiceAssistant] TTS synthesis error:', err);
+    }
   }
 
   return {

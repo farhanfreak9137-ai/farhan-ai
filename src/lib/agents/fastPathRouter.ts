@@ -40,14 +40,13 @@ function normalizeInput(raw: string): string {
   return text;
 }
 
-
 /**
  * Cleans an application target string by stripping articles ("the", "a") and suffixes ("app", "browser")
  */
 function cleanAppTarget(target: string): string {
   let t = target.trim();
   t = t.replace(/^(?:the|a|an|my)\s+/i, '');
-  t = t.replace(/\s+(?:app|application|program|software|browser|tool)$/i, '');
+  t = t.replace(/\s+(?:app|application|program|software|browser|tool|folder)$/i, '');
   return t.trim();
 }
 
@@ -90,8 +89,10 @@ export async function tryFastPathRoute(userPrompt: string): Promise<FastPathMatc
   }
 
   // ---------------------------------------------------------------------------
-  // 1. Window & Desktop Controls (Show Desktop / Minimize All)
+  // 1. Window & Desktop Controls
   // ---------------------------------------------------------------------------
+  
+  // Minimize All / Show Desktop
   const isDesktopIntent =
     normalized === 'desktop' ||
     normalized.includes('show desktop') ||
@@ -103,7 +104,7 @@ export async function tryFastPathRoute(userPrompt: string): Promise<FastPathMatc
     normalized === 'minimize';
 
   if (isDesktopIntent) {
-    const res = await runPcController(['window', 'minimize_all']);
+    await runPcController(['window', 'minimize_all']);
     return {
       matched: true,
       actionName: 'minimize_all',
@@ -120,9 +121,60 @@ export async function tryFastPathRoute(userPrompt: string): Promise<FastPathMatc
     };
   }
 
-  // ---------------------------------------------------------------------------
-  // 2. Workstation Lock
-  // ---------------------------------------------------------------------------
+  // Restore Windows / Unminimize
+  const isRestoreIntent =
+    normalized === 'restore' ||
+    normalized.includes('restore all') ||
+    normalized.includes('restore windows') ||
+    normalized.includes('unminimize') ||
+    normalized.includes('bring back windows') ||
+    normalized.includes('undo minimize');
+
+  if (isRestoreIntent) {
+    await runPcController(['window', 'restore_all']);
+    return {
+      matched: true,
+      actionName: 'restore_all',
+      answer: 'All windows restored.',
+      steps: [
+        {
+          type: 'reasoning',
+          step: 'intent_resolution',
+          status: 'completed',
+          title: 'Fast-Path: Restore Windows',
+          details: 'Triggered Shell.Application UndoMinimizeALL on user desktop.',
+        },
+      ],
+    };
+  }
+
+  // Close Active Window
+  const isCloseActiveIntent =
+    normalized === 'close window' ||
+    normalized === 'close active window' ||
+    normalized === 'close this window' ||
+    normalized === 'close current window' ||
+    normalized === 'close active';
+
+  if (isCloseActiveIntent) {
+    const res = await runPcController(['window', 'close_active']);
+    return {
+      matched: true,
+      actionName: 'close_active_window',
+      answer: res.success ? 'Active window closed.' : 'No active window found to close.',
+      steps: [
+        {
+          type: 'reasoning',
+          step: 'intent_resolution',
+          status: 'completed',
+          title: 'Fast-Path: Close Active Window',
+          details: 'Sent WM_CLOSE message to foreground window handle.',
+        },
+      ],
+    };
+  }
+
+  // Workstation Lock
   const isLockIntent =
     normalized.includes('lock pc') ||
     normalized.includes('lock computer') ||
@@ -149,14 +201,18 @@ export async function tryFastPathRoute(userPrompt: string): Promise<FastPathMatc
   }
 
   // ---------------------------------------------------------------------------
-  // 3. Audio & Volume Controls
+  // 2. Audio & Volume Controls
   // ---------------------------------------------------------------------------
   const isMuteIntent =
-    normalized.includes('mute') ||
-    normalized.includes('unmute') ||
+    normalized === 'mute' ||
+    normalized === 'unmute' ||
+    normalized.includes('toggle mute') ||
     normalized.includes('turn off sound') ||
-    normalized.includes('silence');
-
+    normalized.includes('turn on sound') ||
+    normalized.includes('silence') ||
+    normalized.includes('mute pc') ||
+    normalized.includes('mute volume') ||
+    normalized.includes('mute audio');
 
   if (isMuteIntent) {
     await runPcController(['volume', 'mute']);
@@ -180,10 +236,11 @@ export async function tryFastPathRoute(userPrompt: string): Promise<FastPathMatc
     normalized.includes('volume up') ||
     normalized.includes('increase volume') ||
     normalized.includes('turn up volume') ||
-    normalized.includes('turn up the volume') ||
+    normalized.includes('turn up sound') ||
     normalized.includes('raise volume') ||
     normalized.includes('boost volume') ||
-    normalized === 'louder';
+    normalized === 'louder' ||
+    normalized === 'turn it up';
 
   if (isVolUpIntent) {
     await runPcController(['volume', 'up', '--steps', '4']);
@@ -207,10 +264,11 @@ export async function tryFastPathRoute(userPrompt: string): Promise<FastPathMatc
     normalized.includes('volume down') ||
     normalized.includes('decrease volume') ||
     normalized.includes('turn down volume') ||
-    normalized.includes('turn down the volume') ||
+    normalized.includes('turn down sound') ||
     normalized.includes('lower volume') ||
     normalized === 'quieter' ||
-    normalized === 'softer';
+    normalized === 'softer' ||
+    normalized === 'turn it down';
 
   if (isVolDownIntent) {
     await runPcController(['volume', 'down', '--steps', '4']);
@@ -231,9 +289,19 @@ export async function tryFastPathRoute(userPrompt: string): Promise<FastPathMatc
   }
 
   // ---------------------------------------------------------------------------
-  // 4. Media Playback Controls
+  // 3. Media Playback Controls
   // ---------------------------------------------------------------------------
-  if (normalized === 'play' || normalized === 'pause' || normalized === 'resume' || normalized.includes('play pause') || normalized.includes('stop music')) {
+  if (
+    normalized === 'play' ||
+    normalized === 'pause' ||
+    normalized === 'resume' ||
+    normalized.includes('play music') ||
+    normalized.includes('pause music') ||
+    normalized.includes('stop music') ||
+    normalized.includes('resume music') ||
+    normalized.includes('play pause') ||
+    normalized.includes('toggle media')
+  ) {
     await runPcController(['media', 'play_pause']);
     return {
       matched: true,
@@ -251,7 +319,14 @@ export async function tryFastPathRoute(userPrompt: string): Promise<FastPathMatc
     };
   }
 
-  if (normalized.includes('next track') || normalized.includes('next song') || normalized === 'skip' || normalized.includes('skip song')) {
+  if (
+    normalized.includes('next track') ||
+    normalized.includes('next song') ||
+    normalized === 'skip' ||
+    normalized === 'skip song' ||
+    normalized === 'skip track' ||
+    normalized === 'next'
+  ) {
     await runPcController(['media', 'next']);
     return {
       matched: true,
@@ -269,7 +344,14 @@ export async function tryFastPathRoute(userPrompt: string): Promise<FastPathMatc
     };
   }
 
-  if (normalized.includes('previous track') || normalized.includes('previous song') || normalized.includes('prev song') || normalized === 'prev') {
+  if (
+    normalized.includes('previous track') ||
+    normalized.includes('previous song') ||
+    normalized.includes('prev song') ||
+    normalized.includes('prev track') ||
+    normalized === 'previous' ||
+    normalized === 'prev'
+  ) {
     await runPcController(['media', 'prev']);
     return {
       matched: true,
@@ -288,6 +370,53 @@ export async function tryFastPathRoute(userPrompt: string): Promise<FastPathMatc
   }
 
   // ---------------------------------------------------------------------------
+  // 4. Web Search Queries
+  // ---------------------------------------------------------------------------
+  const ytSearchMatch = normalized.match(/^(?:search\s+youtube\s+(?:for\s+)?|youtube\s+)(.+)$/i);
+  if (ytSearchMatch) {
+    const query = ytSearchMatch[1].trim();
+    if (query) {
+      await runPcController(['search', 'youtube', query]);
+      return {
+        matched: true,
+        actionName: 'web_search_youtube',
+        answer: `Searching YouTube for "${query}" in your browser.`,
+        steps: [
+          {
+            type: 'reasoning',
+            step: 'intent_resolution',
+            status: 'completed',
+            title: 'Fast-Path: YouTube Search',
+            details: `Opened YouTube search for "${query}".`,
+          },
+        ],
+      };
+    }
+  }
+
+  const googleSearchMatch = normalized.match(/^(?:search\s+google\s+(?:for\s+)?|google\s+|search\s+(?:for\s+)?)(.+)$/i);
+  if (googleSearchMatch) {
+    const query = googleSearchMatch[1].trim();
+    if (query && !query.startsWith('status') && !query.startsWith('process')) {
+      await runPcController(['search', 'google', query]);
+      return {
+        matched: true,
+        actionName: 'web_search_google',
+        answer: `Searching Google for "${query}" in your browser.`,
+        steps: [
+          {
+            type: 'reasoning',
+            step: 'intent_resolution',
+            status: 'completed',
+            title: 'Fast-Path: Google Search',
+            details: `Opened Google search for "${query}".`,
+          },
+        ],
+      };
+    }
+  }
+
+  // ---------------------------------------------------------------------------
   // 5. System Diagnostics & Hardware Status
   // ---------------------------------------------------------------------------
   const isSystemStatusIntent =
@@ -299,6 +428,7 @@ export async function tryFastPathRoute(userPrompt: string): Promise<FastPathMatc
     normalized.includes('memory usage') ||
     normalized.includes('cpu usage') ||
     normalized.includes('disk space') ||
+    normalized.includes('storage') ||
     normalized.includes('system stats') ||
     normalized.includes('system specs') ||
     normalized.includes('pc specs') ||
@@ -355,8 +485,9 @@ export async function tryFastPathRoute(userPrompt: string): Promise<FastPathMatc
     normalized.includes('list process') ||
     normalized.includes('show process') ||
     normalized.includes('task manager') ||
-    normalized.includes('what is using the most') ||
-    normalized.includes('memory hogs');
+    normalized.includes('what is running') ||
+    normalized.includes('memory hogs') ||
+    normalized.includes('process list');
 
   if (isProcessIntent) {
     const res = await runPcController(['process', 'list', '--limit', '8']);
@@ -402,7 +533,8 @@ export async function tryFastPathRoute(userPrompt: string): Promise<FastPathMatc
     normalized.includes('screen shot') ||
     normalized.includes('capture screen') ||
     normalized.includes('capture the screen') ||
-    normalized.includes('take a screenshot');
+    normalized.includes('take a screenshot') ||
+    normalized === 'snip';
 
   if (isScreenshotIntent) {
     const res = await runPcController(['screenshot']);
@@ -427,10 +559,9 @@ export async function tryFastPathRoute(userPrompt: string): Promise<FastPathMatc
   // ---------------------------------------------------------------------------
   // 8. Application Launching
   // ---------------------------------------------------------------------------
-  const launchMatch = normalized.match(/^(?:open|start|launch|run)\s+(.+)$/i);
+  const launchMatch = normalized.match(/^(?:open|start|launch|run|switch\s+to|bring\s+up|show\s+me)\s+(.+)$/i);
   if (launchMatch) {
     const rawTarget = launchMatch[1].trim();
-    // Exclude question words like "how to open", "why does"
     if (!rawTarget.startsWith('how') && !rawTarget.startsWith('why') && !rawTarget.startsWith('what')) {
       const cleanTarget = cleanAppTarget(rawTarget);
       if (cleanTarget) {
@@ -501,7 +632,7 @@ export async function tryFastPathRoute(userPrompt: string): Promise<FastPathMatc
   // ---------------------------------------------------------------------------
   // 10. Create Folder / Directory
   // ---------------------------------------------------------------------------
-  const folderMatch = clean.match(/^(?:create|make)\s+(?:folder|directory)\s+(.+)$/i);
+  const folderMatch = clean.match(/^(?:create|make)\s+(?:a\s+)?(?:folder|directory)\s+(?:called\s+|named\s+)?(.+)$/i);
   if (folderMatch) {
     const targetFolder = folderMatch[1].trim().replace(/^["']|["']$/g, '');
     const res = await runPcController(['file', 'create_folder', targetFolder]);
@@ -517,6 +648,31 @@ export async function tryFastPathRoute(userPrompt: string): Promise<FastPathMatc
             status: 'completed',
             title: 'Fast-Path: Create Folder',
             details: `Created folder at ${targetFolder}`,
+          },
+        ],
+      };
+    }
+  }
+
+  // ---------------------------------------------------------------------------
+  // 11. Delete File / Folder
+  // ---------------------------------------------------------------------------
+  const deleteMatch = clean.match(/^(?:delete|remove)\s+(?:file|folder)\s+(.+)$/i);
+  if (deleteMatch) {
+    const targetPath = deleteMatch[1].trim().replace(/^["']|["']$/g, '');
+    const res = await runPcController(['file', 'delete', targetPath]);
+    if (res.success) {
+      return {
+        matched: true,
+        actionName: 'delete_file',
+        answer: `🗑️ Deleted: \`${targetPath}\``,
+        steps: [
+          {
+            type: 'reasoning',
+            step: 'intent_resolution',
+            status: 'completed',
+            title: 'Fast-Path: Delete',
+            details: `Deleted ${targetPath}`,
           },
         ],
       };

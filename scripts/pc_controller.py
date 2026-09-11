@@ -1,15 +1,14 @@
 #!/usr/bin/env python3
 """
-Farhan AI - Native Offline PC Controller Suite
-Fully offline, zero-API Windows computer automation.
-Provides deterministic system control:
-  - System diagnostics & hardware health
-  - Audio & media control (volume up/down/mute, play/pause)
-  - Window & workstation control (minimize all, show desktop, lock screen)
-  - Process management (list running, terminate)
-  - Application launcher & closer
-  - File and folder operations (create, delete, list, search)
-  - Screen capture
+Farhan AI - Universal Offline PC Controller Suite
+Complete, deterministic Windows computer automation:
+  - System diagnostics & hardware health (RAM, CPU, Drives, Uptime, Power)
+  - Audio & media control (Mute, Unmute, Volume Up, Volume Down, Play, Pause, Next, Prev)
+  - Window & workstation control (Minimize All, Restore All, Show Desktop, Lock Workstation, Close Window)
+  - Process management (List top processes by RAM/CPU, terminate process by name/PID)
+  - Application launcher & closer (All Windows apps, tools, browsers, URLs)
+  - File and folder operations (Create, delete, list, search, open in Explorer)
+  - Full desktop screen capture
 """
 
 import sys
@@ -20,6 +19,7 @@ import ctypes
 import shutil
 import subprocess
 import time
+import urllib.parse
 from pathlib import Path
 from datetime import datetime
 
@@ -189,11 +189,11 @@ def control_media(action):
     return {"success": False, "error": f"Unknown media action: {action}"}
 
 def control_windows(action):
-    """Window management actions: minimize_all, show_desktop, lock."""
+    """Window management actions: minimize_all, show_desktop, restore_all, close_active, lock."""
     attach_to_user_desktop()
     action = action.lower()
     if action in ("minimize_all", "desktop", "show_desktop", "toggle_desktop", "minimize"):
-        # 1. Direct enumeration and minimization of visible top-level windows on real desktop
+        # 1. Enumerate all visible top-level windows on default desktop and minimize them
         try:
             DESKTOP_ALL = 0x10000000 | 0x000F0000 | 0x000001FF
             hDesk = user32.OpenDesktopW('default', 0, False, DESKTOP_ALL)
@@ -207,8 +207,8 @@ def control_windows(action):
                             user32.GetWindowTextW(hwnd, buff, length + 1)
                             title = buff.value
                             if title and title != "Program Manager":
-                                user32.ShowWindow(hwnd, 6) # SW_MINIMIZE
-                                user32.PostMessageW(hwnd, 0x0112, 0xF020, 0) # SC_MINIMIZE
+                                user32.ShowWindow(hwnd, 6)  # SW_MINIMIZE
+                                user32.PostMessageW(hwnd, 0x0112, 0xF020, 0)  # SC_MINIMIZE
                     return True
                 WNDENUMPROC = ctypes.WINFUNCTYPE(ctypes.c_bool, ctypes.c_void_p, ctypes.c_void_p)
                 user32.EnumDesktopWindows(hDesk, WNDENUMPROC(enum_cb), 0)
@@ -227,9 +227,26 @@ def control_windows(action):
 
         return {"success": True, "message": "All windows minimized. Desktop is shown."}
 
+    elif action in ("restore_all", "restore", "unminimize"):
+        try:
+            import win32com.client
+            shell = win32com.client.Dispatch("Shell.Application")
+            shell.UndoMinimizeALL()
+            return {"success": True, "message": "All windows restored."}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+    elif action in ("close_active", "close_window"):
+        hwnd = user32.GetForegroundWindow()
+        if hwnd:
+            user32.PostMessageW(hwnd, 0x0010, 0, 0)  # WM_CLOSE
+            return {"success": True, "message": "Active window closed."}
+        return {"success": False, "error": "No active window found."}
+
     elif action in ("lock", "lock_pc", "lock_screen", "lock_workstation"):
         user32.LockWorkStation()
         return {"success": True, "message": "Workstation locked successfully."}
+
     return {"success": False, "error": f"Unknown window action: {action}"}
 
 def list_processes(limit=15):
@@ -278,6 +295,10 @@ def kill_process(target, force=True):
     if target.lower() in protected:
         return {"success": False, "error": f"Terminating protected system process '{target}' is not allowed."}
 
+    # Special handling for active window
+    if target.lower() in ["window", "active window", "this window", "current window"]:
+        return control_windows("close_active")
+
     # Common process name aliases
     proc_aliases = {
         "calculator": ["CalculatorApp.exe", "calc.exe"],
@@ -287,12 +308,30 @@ def kill_process(target, force=True):
         "microsoft edge": ["msedge.exe"],
         "chrome": ["chrome.exe"],
         "google chrome": ["chrome.exe"],
+        "brave": ["brave.exe"],
+        "firefox": ["firefox.exe"],
+        "opera": ["opera.exe"],
         "vscode": ["Code.exe"],
         "vs code": ["Code.exe"],
         "code": ["Code.exe"],
         "terminal": ["WindowsTerminal.exe"],
         "task manager": ["Taskmgr.exe"],
-        "paint": ["mspaint.exe"]
+        "taskmgr": ["Taskmgr.exe"],
+        "paint": ["mspaint.exe"],
+        "spotify": ["Spotify.exe"],
+        "vlc": ["vlc.exe"],
+        "discord": ["Discord.exe"],
+        "whatsapp": ["WhatsApp.exe"],
+        "telegram": ["Telegram.exe"],
+        "steam": ["steam.exe"],
+        "slack": ["slack.exe"],
+        "teams": ["ms-teams.exe", "Teams.exe"],
+        "zoom": ["Zoom.exe"],
+        "word": ["WINWORD.EXE"],
+        "excel": ["EXCEL.EXE"],
+        "powerpoint": ["POWERPNT.EXE"],
+        "control panel": ["control.exe"],
+        "settings": ["SystemSettings.exe"]
     }
 
     targets_to_try = proc_aliases.get(target.lower(), [target])
@@ -317,32 +356,113 @@ def kill_process(target, force=True):
 
     return {"success": False, "error": last_error or f"Process '{target}' not found"}
 
+def web_search(engine, query):
+    """Searches Google or YouTube in the user's default browser on the interactive desktop."""
+    attach_to_user_desktop()
+    q = urllib.parse.quote_plus(query.strip())
+    if engine.lower() == "youtube":
+        url = f"https://www.youtube.com/results?search_query={q}"
+    else:
+        url = f"https://www.google.com/search?q={q}"
+    return launch_application(url)
+
 def launch_application(target, args=""):
-    """Launches an application or URL with foreground focus on real user desktop."""
+    """Launches an application, tool, URL, or shell path with foreground focus on real desktop."""
     attach_to_user_desktop()
     target = target.strip()
+    
+    # Common app & web aliases
     aliases = {
+        # Browsers
         "microsoft edge": "msedge",
         "edge": "msedge",
         "google chrome": "chrome",
         "chrome": "chrome",
+        "brave": "brave",
+        "firefox": "firefox",
+        "opera": "opera",
+        # Windows built-in tools
         "calculator": "calc",
         "calc": "calc",
         "notepad": "notepad",
+        "notes": "notepad",
         "file explorer": "explorer",
         "explorer": "explorer",
+        "files": "explorer",
+        "my computer": "explorer",
+        "this pc": "explorer",
         "vs code": "code",
         "vscode": "code",
         "code": "code",
         "terminal": "wt",
+        "windows terminal": "wt",
         "cmd": "cmd.exe",
+        "command prompt": "cmd.exe",
         "powershell": "powershell.exe",
         "task manager": "taskmgr",
+        "taskmgr": "taskmgr",
         "settings": "ms-settings:",
+        "windows settings": "ms-settings:",
         "control panel": "control",
-        "paint": "mspaint"
+        "paint": "mspaint",
+        "paint 3d": "mspaint",
+        "snipping tool": "snippingtool",
+        "snip": "snippingtool",
+        "camera": "microsoft.windows.camera:",
+        "photos": "ms-photos:",
+        "registry editor": "regedit",
+        "regedit": "regedit",
+        "device manager": "devmgmt.msc",
+        "disk management": "diskmgmt.msc",
+        "services": "services.msc",
+        "event viewer": "eventvwr.msc",
+        # Productivity
+        "word": "winword",
+        "excel": "excel",
+        "powerpoint": "powerpnt",
+        "ppt": "powerpnt",
+        # Media & social
+        "spotify": "spotify",
+        "vlc": "vlc",
+        "media player": "vlc",
+        "whatsapp": "whatsapp:",
+        "discord": "discord:",
+        "telegram": "telegram",
+        "steam": "steam:",
+        "slack": "slack",
+        "teams": "teams",
+        "zoom": "zoom",
+        # Common sites
+        "youtube": "https://www.youtube.com",
+        "google": "https://www.google.com",
+        "github": "https://www.github.com",
+        "gmail": "https://mail.google.com",
+        "chatgpt": "https://chatgpt.com",
+        "reddit": "https://www.reddit.com",
+        "twitter": "https://x.com",
+        "x": "https://x.com",
+        "linkedin": "https://www.linkedin.com",
+        "facebook": "https://www.facebook.com",
+        "instagram": "https://www.instagram.com",
+        "netflix": "https://www.netflix.com",
+        "wikipedia": "https://www.wikipedia.org",
+        "amazon": "https://www.amazon.com",
+        # Folders
+        "downloads": os.path.expandvars("%USERPROFILE%\\Downloads"),
+        "desktop": os.path.expandvars("%USERPROFILE%\\Desktop"),
+        "documents": os.path.expandvars("%USERPROFILE%\\Documents"),
+        "pictures": os.path.expandvars("%USERPROFILE%\\Pictures"),
+        "photos folder": os.path.expandvars("%USERPROFILE%\\Pictures"),
+        "videos": os.path.expandvars("%USERPROFILE%\\Videos"),
+        "music": os.path.expandvars("%USERPROFILE%\\Music"),
     }
+
     resolved = aliases.get(target.lower(), target)
+
+    # If it looks like a domain without scheme (e.g. "youtube.com"), prepend https://
+    if "." in resolved and not resolved.startswith(("http://", "https://", "file://", "ms-", "calc", "notepad")):
+        if not os.path.exists(resolved):
+            resolved = "https://" + resolved
 
     # 1. Primary: win32api ShellExecute with SW_SHOWNORMAL (Activates & Focuses window in foreground)
     try:
@@ -398,6 +518,11 @@ def file_operations(action, path_str, extra=""):
             else:
                 path_obj.unlink()
             return {"success": True, "message": f"Deleted: {path_obj.resolve()}"}
+
+        elif action == "open_folder":
+            attach_to_user_desktop()
+            os.startfile(str(path_obj.resolve()))
+            return {"success": True, "message": f"Opened folder in Explorer: {path_obj.resolve()}"}
 
         elif action == "list":
             if not path_obj.exists():
@@ -465,7 +590,7 @@ def main():
 
     # window
     win_p = subparsers.add_parser("window")
-    win_p.add_argument("action", choices=["minimize_all", "show_desktop", "toggle_desktop", "minimize", "lock"])
+    win_p.add_argument("action", choices=["minimize_all", "show_desktop", "toggle_desktop", "minimize", "restore_all", "restore", "close_active", "lock"])
 
     # process
     proc_p = subparsers.add_parser("process")
@@ -482,12 +607,17 @@ def main():
 
     # file
     file_p = subparsers.add_parser("file")
-    file_p.add_argument("action", choices=["create_folder", "create_file", "delete", "list", "search"])
+    file_p.add_argument("action", choices=["create_folder", "create_file", "delete", "list", "search", "open_folder"])
     file_p.add_argument("path")
     file_p.add_argument("--extra", default="")
 
     # screenshot
     subparsers.add_parser("screenshot")
+
+    # search
+    search_p = subparsers.add_parser("search")
+    search_p.add_argument("engine", choices=["google", "youtube"])
+    search_p.add_argument("query")
 
     args = parser.parse_args()
 
@@ -513,6 +643,8 @@ def main():
         result = file_operations(args.action, args.path, args.extra)
     elif args.command == "screenshot":
         result = take_screenshot()
+    elif args.command == "search":
+        result = web_search(args.engine, args.query)
     else:
         result = {"success": False, "error": f"Unknown command: {args.command}"}
 

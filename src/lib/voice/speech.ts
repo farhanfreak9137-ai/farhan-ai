@@ -113,6 +113,11 @@ export function useVoiceInput(
     }
   }, [handleStart, handleStop]);
 
+  const onTranscriptRef = useRef(onTranscript);
+  onTranscriptRef.current = onTranscript;
+  const optionsRef = useRef(options);
+  optionsRef.current = options;
+
   useEffect(() => {
     if (typeof window !== 'undefined') {
       const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -137,11 +142,11 @@ export function useVoiceInput(
               if (!wakeWordActiveRef.current) {
                 setWakeWordActive(true);
                 playJarvisChime();
-                if (options.onWakeWord) options.onWakeWord('Jarvis');
+                if (optionsRef.current.onWakeWord) optionsRef.current.onWakeWord('Jarvis');
               }
 
               if (result.isFinal && command.length > 1) {
-                onTranscript(command);
+                onTranscriptRef.current(command);
                 setWakeWordActive(false);
               }
               return;
@@ -149,14 +154,14 @@ export function useVoiceInput(
 
             // If wake word was previously triggered and user is now speaking the command
             if (wakeWordActiveRef.current && result.isFinal && transcript.length > 1) {
-              onTranscript(transcript);
+              onTranscriptRef.current(transcript);
               setWakeWordActive(false);
               return;
             }
           }
 
           if (result.isFinal) {
-            onTranscript(transcript);
+            onTranscriptRef.current(transcript);
             if (!wakeWordModeRef.current) {
               setIsListening(false);
               isListeningRef.current = false;
@@ -194,9 +199,15 @@ export function useVoiceInput(
         };
 
         recognitionRef.current = recognition;
+
+        return () => {
+          try {
+            recognition.abort();
+          } catch {}
+        };
       }
     }
-  }, [onTranscript, wakeWordMode, options]);
+  }, [wakeWordMode]);
 
   // Global in-app hotkey listener: Alt+J or Ctrl+Space
   useEffect(() => {
