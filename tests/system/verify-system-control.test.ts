@@ -7,6 +7,9 @@ import * as os from 'os';
 import * as path from 'path';
 import * as fs from 'fs/promises';
 
+import { tryFastPathRoute, runPcController } from '../../src/lib/agents/fastPathRouter';
+import { CentralAssistant } from '../../src/lib/agents/assistant';
+
 describe('System & OS Control Agent Verification', () => {
   const tempTestDir = path.join(os.tmpdir(), `farhan_sys_test_${Date.now()}`);
 
@@ -22,12 +25,21 @@ describe('System & OS Control Agent Verification', () => {
     }
   });
 
-  test('1. SystemAgent is registered in defaultRegistry with all 4 tools', () => {
+  test('1. SystemAgent is registered in defaultRegistry with all 8 tools', () => {
     const agent = defaultRegistry.getAgent('system_agent');
     assert.ok(agent, 'SystemAgent must be registered');
     assert.strictEqual(agent.id, 'system_agent');
 
-    const tools = ['execute_command', 'file_operations', 'launch_application', 'system_diagnostics'];
+    const tools = [
+      'execute_command',
+      'file_operations',
+      'launch_application',
+      'system_diagnostics',
+      'pc_window_control',
+      'audio_media_control',
+      'process_management',
+      'screen_capture',
+    ];
     for (const toolName of tools) {
       const tool = defaultRegistry.getTool(toolName);
       assert.ok(tool, `Tool ${toolName} must be registered in defaultRegistry`);
@@ -210,11 +222,11 @@ describe('System & OS Control Agent Verification', () => {
     const tool = defaultRegistry.getTool('launch_application');
     assert.ok(tool);
 
-    // Test with calc or cmd (using echo target to avoid popping up an actual window in tests)
-    const result = await tool.execute({ target: 'echo' }, {});
+    const result = await tool.execute({ target: 'cmd', args: ['/c', 'exit 0'] }, {});
     assert.strictEqual(result.success, true);
     assert.strictEqual((result.data as any).status, 'LAUNCHED');
   });
+
 
   test('11. Central Assistant system prompt contains system agent instructions and routing rule', () => {
     const prompt = buildSystemPrompt();
@@ -224,4 +236,41 @@ describe('System & OS Control Agent Verification', () => {
     assert.ok(prompt.includes('system_diagnostics'));
     assert.ok(prompt.includes('SELECTIVE INTENT ROUTING RULE'));
   });
+
+  test('12. Offline Python Controller runs system status & process list natively', async () => {
+    const statusRes = await runPcController(['status']);
+    assert.strictEqual(statusRes.success, true);
+    assert.ok(statusRes.data.ram);
+    assert.ok(statusRes.data.ram.totalGb > 0);
+    assert.ok(statusRes.data.cpu.logicalCores > 0);
+
+    const procRes = await runPcController(['process', 'list', '--limit', '5']);
+    assert.strictEqual(procRes.success, true);
+    assert.ok(Array.isArray(procRes.data));
+    assert.ok(procRes.data.length > 0);
+  });
+
+  test('13. Zero-API FastPathRouter intercepts OS commands without LLM token cost', async () => {
+    const statusRoute = await tryFastPathRoute('system status');
+    assert.strictEqual(statusRoute.matched, true);
+    assert.strictEqual(statusRoute.actionName, 'system_status');
+    assert.ok(statusRoute.answer?.includes('Live System Metrics'));
+
+    const muteRoute = await tryFastPathRoute('mute');
+    assert.strictEqual(muteRoute.matched, true);
+    assert.strictEqual(muteRoute.actionName, 'volume_mute');
+
+    const nonMatchRoute = await tryFastPathRoute('explain general relativity in physics');
+    assert.strictEqual(nonMatchRoute.matched, false);
+  });
+
+  test('14. CentralAssistant routes through fast-path with local_fastpath provider and 0 tokens', async () => {
+    const assistant = new CentralAssistant();
+    const res = await assistant.processRequest('show system stats');
+    assert.strictEqual(res.providerUsed, 'local_fastpath');
+    assert.strictEqual(res.agentUsed, 'System Agent (Offline Fast-Path)');
+    assert.ok(res.answer.includes('Live System Metrics'));
+    assert.ok(res.steps.length > 0);
+  });
 });
+
