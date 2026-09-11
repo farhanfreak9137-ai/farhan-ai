@@ -148,6 +148,26 @@ export class MockProvider implements LLMProvider {
         "- **Core Values**: Technical Craftsmanship, Extreme Ownership, Continuous Learning, and High Practical Impact.";
     }
 
-    return "Hello! I am **Farhan AI**, your personal career agent. I am grounded strictly in Farhan's verified skills, experience, projects, and career goals. How can I assist you with career analysis, skill-gap evaluation, or interview preparation today?";
+    if (
+      userMessage.includes('hello') ||
+      userMessage.includes('hi') ||
+      userMessage.includes('hey') ||
+      userMessage.includes('who are you') ||
+      userMessage.includes('what can you do') ||
+      userMessage.includes('help') ||
+      userMessage.includes('how to use') ||
+      userMessage.includes('how do i')
+    ) {
+      return "⚡ **Farhan AI System Assistant** (Offline Zero-Token Mode)\n\n" +
+        "I am ready to control your computer and execute actions natively with 0 API token costs:\n\n" +
+        "• **Desktop & Windows**: *\"Clear my screen\"*, *\"Minimize all\"*, *\"Bring back windows\"*, *\"Close active window\"*, *\"Lock PC\"*\n" +
+        "• **Volume & Media**: *\"Make it louder\"*, *\"Turn it down\"*, *\"Mute\"*, *\"Play music\"*, *\"Next song\"*\n" +
+        "• **Applications**: *\"Fire up VS Code\"*, *\"Open Chrome\"*, *\"Open Calculator\"*, *\"Kill Discord\"*\n" +
+        "• **Diagnostics**: *\"Check system specs\"*, *\"What is eating my RAM?\"*, *\"Take a screenshot\"*\n" +
+        "• **Navigation & Search**: *\"Open Downloads\"*, *\"Search Google for <query>\"*, *\"Search YouTube for <query>\"*\n\n" +
+        "Just say or type any command to execute!";
+    }
+
+    return "Hello! I am **Farhan AI**, your offline personal assistant. You can give me direct voice or typed commands to control your desktop, launch applications, adjust audio, inspect system performance, or capture screenshots (0 tokens required). How can I assist you right now?";
   }
 }
