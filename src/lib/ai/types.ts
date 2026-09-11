@@ -56,6 +56,7 @@ export interface ProviderInfo {
   defaultModel: string;
   contextWindow: string; // e.g. "1,000,000+ tokens"
   configured: boolean;
+  installedModels?: string[];
 }
 
 export interface LLMProvider {

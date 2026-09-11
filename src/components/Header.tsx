@@ -213,7 +213,7 @@ export function Header({
           >
             {providers.map((p) => (
               <option key={p.id} value={p.id}>
-                {p.name} {p.configured ? '✓' : '(No Key)'}
+                {p.name} {p.configured ? '✓' : p.id === 'ollama' ? '(Offline)' : '(No Key)'}
               </option>
             ))}
           </select>

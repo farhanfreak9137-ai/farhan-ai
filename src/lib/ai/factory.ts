@@ -2,9 +2,10 @@ import { LLMProvider, ProviderId, ProviderInfo, ChatMessage, ChatOptions } from 
 import { GeminiProvider } from './providers/gemini';
 import { OpenAICompatibleProvider } from './providers/openai-compatible';
 import { MockProvider } from './providers/mock';
+import { checkOllamaHealth, listInstalledOllamaModels } from './ollama';
 
 /**
- * Inspects environment variables and returns metadata on all supported providers.
+ * Inspects environment variables and returns baseline metadata on all supported providers.
  */
 export function getAvailableProviders(): ProviderInfo[] {
   return [
@@ -31,8 +32,8 @@ export function getAvailableProviders(): ProviderInfo[] {
     },
     {
       id: 'ollama',
-      name: 'Local LLM (Ollama)',
-      defaultModel: process.env.OLLAMA_MODEL || 'llama3.2',
+      name: 'Local LLM (Ollama Offline)',
+      defaultModel: process.env.OLLAMA_MODEL || 'qwen2.5:1.5b',
       contextWindow: '32,000 tokens',
       configured: Boolean(process.env.OLLAMA_ENABLED === 'true' || process.env.OLLAMA_BASE_URL),
     },
@@ -45,12 +46,39 @@ export function getAvailableProviders(): ProviderInfo[] {
     },
     {
       id: 'mock',
-      name: 'Farhan AI Mock (Offline Mode)',
+      name: 'Auren AI Mock (Deterministic)',
       defaultModel: 'deterministic-career-engine',
       contextWindow: 'Unlimited',
       configured: true,
     },
   ];
+}
+
+/**
+ * Dynamically queries live local services (such as Ollama on localhost:11434)
+ * to provide real-time status and installed local model lists.
+ */
+export async function getAvailableProvidersAsync(): Promise<ProviderInfo[]> {
+  const baseProviders = getAvailableProviders();
+  try {
+    const health = await checkOllamaHealth(1000);
+    const ollamaProvider = baseProviders.find((p) => p.id === 'ollama');
+
+    if (ollamaProvider) {
+      if (health.running) {
+        ollamaProvider.configured = true;
+        const models = await listInstalledOllamaModels(1500);
+        ollamaProvider.installedModels = models.map((m) => m.name);
+        if (models.length > 0) {
+          ollamaProvider.defaultModel = process.env.OLLAMA_MODEL || models[0].name;
+          ollamaProvider.name = `Local Ollama (${models.length} model${models.length === 1 ? '' : 's'})`;
+        }
+      }
+    }
+  } catch (err) {
+    console.warn('Ollama dynamic discovery error:', err);
+  }
+  return baseProviders;
 }
 
 /**
@@ -93,7 +121,7 @@ export function createProvider(id: ProviderId): LLMProvider {
         name: 'Local Ollama',
         apiKey: 'ollama-local',
         baseURL: process.env.OLLAMA_BASE_URL || 'http://localhost:11434/v1',
-        defaultModel: process.env.OLLAMA_MODEL || 'llama3.2',
+        defaultModel: process.env.OLLAMA_MODEL || 'qwen2.5:1.5b',
       });
     }
     case 'local_fastpath':

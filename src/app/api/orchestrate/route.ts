@@ -20,7 +20,7 @@ const ToolCallSchema = z.object({
 
 const OrchestrateRequestSchema = z.object({
   messages: z.array(ChatMessageSchema).min(1, 'At least one message is required').max(100),
-  provider: z.enum(['gemini', 'openai', 'groq', 'mock']).optional(),
+  provider: z.enum(['gemini', 'openai', 'groq', 'ollama', 'local_fastpath', 'mock']).optional(),
   action: z.enum(['approve_action', 'execute']).optional(),
   toolCall: ToolCallSchema.optional(),
 });
