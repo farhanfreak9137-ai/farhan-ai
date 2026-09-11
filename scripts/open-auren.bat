@@ -1,20 +1,19 @@
 @echo off
 REM ==============================================================================
-REM Farhan AI v1.0 — Jarvis Voice Mode Launcher
-REM Opens Farhan AI directly in dedicated Jarvis Voice mode with auto-mic start.
+REM Auren v1.0 — Voice Studio & AI Companion Launcher
+REM Single-instance window toggle & focus manager
 REM ==============================================================================
 
 set "PORT=3000"
-set "URL=http://localhost:%PORT%/voice?autostart=true"
+set "URL=http://localhost:%PORT%/voice?autostart=true&wakeword=true"
 set "SCRIPT_DIR=%~dp0"
 
-REM 1. Check if Farhan AI server is already running on port 3000
+REM 1. Check if Auren server is running on port 3000
 powershell -NoProfile -Command "$c = Get-NetTCPConnection -LocalPort %PORT% -ErrorAction SilentlyContinue; if (!$c) { exit 1 } else { exit 0 }"
 
 if %errorlevel% neq 0 (
-    echo [Farhan AI Jarvis] Starting background service...
+    echo [Auren] Starting background server...
     wscript.exe "%SCRIPT_DIR%start-background.vbs"
-    REM Wait up to 10 seconds for server to be ready
     powershell -NoProfile -Command "for ($i=0; $i -lt 20; $i++) { try { $r = Invoke-WebRequest -Uri 'http://localhost:%PORT%/api/health' -UseBasicParsing -TimeoutSec 1; if ($r.StatusCode -eq 200) { exit 0 } } catch {}; Start-Sleep -Milliseconds 500 }; exit 0"
 )
 

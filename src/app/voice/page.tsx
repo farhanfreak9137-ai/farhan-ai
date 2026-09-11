@@ -4,8 +4,8 @@ import { VoiceStudio } from '@/components/voice/VoiceStudio';
 import Link from 'next/link';
 
 export const metadata = {
-  title: 'Voice Interface | Farhan AI',
-  description: 'Hands-free voice assistant integration powered by Central Assistant',
+  title: 'Auren Voice Studio | Auren AI',
+  description: 'Hands-free voice assistant integration powered by Auren',
 };
 
 export default function VoicePage() {

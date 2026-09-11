@@ -64,7 +64,7 @@ export function VoiceStudio() {
     setRecordingState('PROCESSING');
     setErrorMessage(null);
     setLatestResponse({
-      text: 'Consulting Farhan AI agents & executing tools...',
+      text: 'Consulting Auren agents & executing tools...',
       status: 'thinking',
     });
 
@@ -172,11 +172,19 @@ export function VoiceStudio() {
     },
   });
 
-  // Autostart voice listening if URL query param ?autostart=true or ?voice=true is present
+  // Autostart voice listening and/or wake word mode if URL query params are present
   useEffect(() => {
     if (typeof window !== 'undefined') {
       const params = new URLSearchParams(window.location.search);
-      if (params.get('autostart') === 'true' || params.get('voice') === 'true') {
+      const shouldWakeWord = params.get('wakeword') === 'true' || params.get('wake') === 'true';
+      const shouldAutostart = params.get('autostart') === 'true' || params.get('voice') === 'true';
+
+      if (shouldWakeWord) {
+        setWakeWordMode(true);
+        startListening();
+        setWakeStatus('⚡ Auren Mode Active — Say "Auren" or "Hey Auren"');
+        setTimeout(() => setWakeStatus(null), 5000);
+      } else if (shouldAutostart) {
         const timer = setTimeout(() => {
           playJarvisChime();
           startListening();
@@ -184,7 +192,7 @@ export function VoiceStudio() {
         return () => clearTimeout(timer);
       }
     }
-  }, [startListening, playJarvisChime]);
+  }, [startListening, playJarvisChime, setWakeWordMode]);
 
   // Synchronize recording state
   useEffect(() => {
@@ -273,10 +281,10 @@ export function VoiceStudio() {
           </div>
           <div>
             <h1 style={{ fontSize: '1.35rem', fontWeight: '700', color: '#f8fafc', margin: 0 }}>
-              Voice Interface Studio
+              Auren Voice Studio
             </h1>
             <p style={{ fontSize: '0.85rem', color: '#94a3b8', margin: '0.25rem 0 0 0' }}>
-              Hands-free conversational assistant grounded in Farhan AI's Central Assistant
+              Hands-free conversational assistant powered by Auren
             </p>
           </div>
         </div>
@@ -399,7 +407,7 @@ export function VoiceStudio() {
             : recordingState === 'ERROR'
             ? '⚠ ATTENTION REQUIRED'
             : wakeWordMode
-            ? '⚡ JARVIS WAKE MODE ACTIVE (Say "Jarvis..." or "Hey Farhan...")'
+            ? '⚡ AUREN WAKE MODE ACTIVE (Say "Auren..." or "Hey Auren...")'
             : 'IDLE — READY'}
         </div>
 
@@ -480,7 +488,7 @@ export function VoiceStudio() {
           )}
         </div>
 
-        {/* Jarvis Wake Word & Hotkey Control Center */}
+        {/* Auren Wake Word & Hotkey Control Center */}
         <div
           style={{
             display: 'flex',
@@ -501,7 +509,7 @@ export function VoiceStudio() {
               if (next) {
                 playJarvisChime();
                 startListening();
-                setWakeStatus('⚡ Jarvis Mode Active — Say "Jarvis" or "Hey Farhan" followed by your command');
+                setWakeStatus('⚡ Auren Mode Active — Say "Auren" or "Hey Auren" followed by your command');
                 setTimeout(() => setWakeStatus(null), 5000);
               } else {
                 stopListening();
@@ -526,7 +534,7 @@ export function VoiceStudio() {
             }}
           >
             <span style={{ fontSize: '1rem' }}>{wakeWordMode ? '⚡' : '🎙️'}</span>
-            <span>Jarvis Hands-Free Wake Word: <strong style={{ color: wakeWordMode ? '#4ade80' : '#94a3b8' }}>{wakeWordMode ? 'ACTIVE' : 'OFF'}</strong></span>
+            <span>Auren Hands-Free Wake Word: <strong style={{ color: wakeWordMode ? '#4ade80' : '#94a3b8' }}>{wakeWordMode ? 'ACTIVE' : 'OFF'}</strong></span>
           </button>
 
           {/* Hotkey Badges */}
@@ -540,7 +548,7 @@ export function VoiceStudio() {
                 borderRadius: '6px',
                 border: '1px solid rgba(255, 255, 255, 0.08)',
               }}
-              title="Global Windows Shortcut: Press anywhere in Windows to summon Jarvis"
+              title="Global Windows Shortcut: Press anywhere in Windows to summon Auren"
             >
               ⌨️ Windows: <kbd style={{ color: '#60a5fa', fontWeight: 700 }}>Ctrl + Alt + J</kbd>
             </span>

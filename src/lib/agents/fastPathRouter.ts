@@ -27,7 +27,7 @@ function normalizeInput(raw: string): string {
 
   // Strip conversational wake phrases and polite prefixes
   const prefixPatterns = [
-    /^(?:hey\s+jarvis|jarvis|hey\s+farhan|farhan|computer|assistant)\b\s*/,
+    /^(?:hey\s+auren|auren|hey\s+jarvis|jarvis|hey\s+farhan|farhan|computer|assistant)\b\s*/,
     /^(?:can\s+you\s+|could\s+you\s+|would\s+you\s+|will\s+you\s+)/,
     /^(?:i\s+want\s+you\s+to\s+|i\s+want\s+to\s+|help\s+me\s+|go\s+ahead\s+and\s+|just\s+|now\s+)/,
     /^(?:tell\s+me\s+|show\s+me\s+|give\s+me\s+|check\s+out\s+)/,
@@ -123,6 +123,8 @@ const APP_ALIASES: Record<string, string> = {
   'code editor': 'vs code',
   'ide': 'vs code',
   'antigravity': 'antigravity',
+  'auren': 'antigravity',
+  'auren ai': 'antigravity',
   'jarvis': 'antigravity',
   'farhan ai': 'antigravity',
   'git bash': 'git bash',

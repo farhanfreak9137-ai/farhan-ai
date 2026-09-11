@@ -134,15 +134,15 @@ export function useVoiceInput(
           const transcript = result[0].transcript.trim();
 
           if (wakeWordModeRef.current) {
-            // Wake word regex pattern matching: "Jarvis", "Hey Jarvis", "Farhan", "Hey Farhan"
-            const wakeMatch = transcript.match(/^(?:hey\s+)?(?:jarvis|farhan)[,\s]*(.*)$/i);
+            // Wake word regex pattern matching: "Auren", "Hey Auren", "Jarvis", "Hey Jarvis", "Farhan"
+            const wakeMatch = transcript.match(/^(?:hey\s+)?(?:auren|jarvis|farhan|computer)[,\s]*(.*)$/i);
             
             if (wakeMatch) {
               const command = wakeMatch[1].trim();
               if (!wakeWordActiveRef.current) {
                 setWakeWordActive(true);
                 playJarvisChime();
-                if (optionsRef.current.onWakeWord) optionsRef.current.onWakeWord('Jarvis');
+                if (optionsRef.current.onWakeWord) optionsRef.current.onWakeWord('Auren');
               }
 
               if (result.isFinal && command.length > 1) {

@@ -421,10 +421,10 @@ APP_REGISTRY = {
         "aliases": ["vs code", "vscode", "code", "visual studio code", "editor", "code editor"]
     },
     "antigravity": {
-        "name": "Antigravity / Farhan AI",
+        "name": "Auren / Antigravity",
         "launch": os.path.expandvars(r"%LOCALAPPDATA%\Programs\antigravity\Antigravity.exe"),
         "kill": ["Antigravity.exe"],
-        "aliases": ["antigravity", "jarvis", "farhan ai", "agent"]
+        "aliases": ["auren", "auren ai", "antigravity", "jarvis", "farhan ai", "agent"]
     },
     "git bash": {
         "name": "Git Bash",

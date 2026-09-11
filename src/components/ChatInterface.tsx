@@ -23,7 +23,7 @@ export function ChatInterface({
     {
       role: 'assistant',
       content:
-        "Hello! I am **Farhan AI**, your Central Career Assistant.\n\nI can answer career and technical questions directly, or autonomously delegate complex tasks to specialized agents (**Career Agent**, **Opportunity Agent**, **Memory Agent**) using native tool calling. All data mutations (applications, proposals) are guarded by human approval before touching your local SQLite database.\n\nTry asking: *\"Find opportunities suitable for me\"*, *\"What are my core technical skills?\"*, or *\"Explain Retrieval-Augmented Generation (RAG)\"*.",
+        "Hello! I am **Auren**, your Central AI Assistant & Companion.\n\nI can answer questions directly, execute offline computer control and application management without consuming cloud tokens, or autonomously delegate complex tasks to specialized agents. All data mutations are guarded by human approval before touching your local SQLite database.\n\nTry asking: *\"Open Chrome\"*, *\"What is my RAM usage?\"*, or *\"Find opportunities suitable for me\"*.",
     },
   ]);
   const [stepsLog, setStepsLog] = useState<Record<number, OrchestrationStep[]>>({});

@@ -168,6 +168,6 @@ export class MockProvider implements LLMProvider {
         "Just say or type any command to execute!";
     }
 
-    return "Hello! I am **Farhan AI**, your offline personal assistant. You can give me direct voice or typed commands to control your desktop, launch applications, adjust audio, inspect system performance, or capture screenshots (0 tokens required). How can I assist you right now?";
+    return "Hello! I am **Auren**, your offline personal assistant. You can give me direct voice or typed commands to control your desktop, launch applications, adjust audio, inspect system performance, or capture screenshots (0 tokens required). How can I assist you right now?";
   }
 }
