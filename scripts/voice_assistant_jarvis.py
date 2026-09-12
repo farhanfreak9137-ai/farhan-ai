@@ -120,6 +120,20 @@ class DesktopVoiceHUD:
             pass
 
     def set_state(self, text, color="#38BDF8", border="#1E293B", alpha=0.85):
+        # Sync to shared JSON state for external HUDs and Web UI
+        try:
+            state_data = {
+                "text": text,
+                "color": color,
+                "border": border,
+                "alpha": alpha,
+                "updatedAt": time.time()
+            }
+            with open(os.path.abspath("data/voice_hud_state.json"), "w", encoding="utf-8") as sf:
+                json.dump(state_data, sf)
+        except Exception:
+            pass
+
         if not self.root:
             return
         def _update():
@@ -139,6 +153,20 @@ HUD = DesktopVoiceHUD()
 
 # Ensure data directory exists
 os.makedirs(os.path.dirname(LOG_FILE), exist_ok=True)
+HISTORY_FILE = os.path.abspath("data/voice_command_history.txt")
+
+def log_voice_command(user_text: str, auren_response: str = ""):
+    """Appends clean, timestamped user command & response to dedicated history file."""
+    timestamp = time.strftime("%Y-%m-%d %I:%M:%S %p")
+    entry = f"[{timestamp}] Farhan: \"{user_text}\"\n"
+    if auren_response:
+        entry += f"[{timestamp}] Auren: \"{auren_response}\"\n"
+    entry += "-" * 50 + "\n"
+    try:
+        with open(HISTORY_FILE, "a", encoding="utf-8") as f:
+            f.write(entry)
+    except Exception:
+        pass
 
 if hasattr(sys.stdout, "reconfigure"):
     try:
@@ -343,15 +371,18 @@ def route_to_auren_central(command: str):
             answer = data.get("responseText", data.get("response", "Done."))
             agent = data.get("providerUsed", "Central Assistant")
             log(f"Response from [{agent}]: {answer[:120]}...")
+            log_voice_command(command, answer)
             play_chime_done()
             HUD.set_state(f"Auren: {answer[:30]}", "#22C55E", "#22C55E", 0.92)
             speak(answer)
         else:
             log(f"Backend HTTP error: {resp.status_code}")
+            log_voice_command(command, "Server returned an error")
             HUD.set_state("⚠️ Server error", "#EF4444", "#EF4444", 0.85)
             speak("Sorry Farhan, the server returned an error.")
     except Exception as e:
         log(f"Connection to Auren server failed: {e}")
+        log_voice_command(command, "Connection to Auren server failed")
         HUD.set_state("⚠️ Connection error", "#EF4444", "#EF4444", 0.85)
         speak("I couldn't reach the Auren server. Is it running on port 3000?")
 
@@ -423,6 +454,7 @@ class JarvisVoiceEngine:
             # Check for Sleep / Standby Triggers first!
             if any(re.search(r'\b' + re.escape(sp) + r'\b', low) for sp in SLEEP_PHRASES) or any(low == sp for sp in SLEEP_PHRASES):
                 log(f"🌙 Sleep command detected: '{text}'. Transitioning to STANDBY.")
+                log_voice_command(text, "Good night Farhan, standing by.")
                 HUD.set_state("Auren: Standby", "#64748B", "#1E293B", 0.78)
                 play_chime_sleep()
                 speak("Good night Farhan, standing by.")
@@ -480,6 +512,7 @@ class JarvisVoiceEngine:
 
         # Case A: Two-Stage Conversation (User just said "Hey Auren" or "Hey Auren what's up")
         if not remainder or any(remainder_low == g for g in GREETING_PHRASES):
+            log_voice_command(text, "Hey Farhan, what's up?")
             speak("Hey Farhan, what's up?")
             HUD.set_state("Auren: Listening...", "#10B981", "#10B981", 0.90)
             return
@@ -495,8 +528,7 @@ class JarvisVoiceEngine:
     def run_listener_loop(self):
         """Continuously monitors microphone with low-power audio streaming."""
         self.calibrate_ambient_noise()
-        speech_threshold = max(self.baseline_rms * 2.8, 650.0)
-        log(f"Listening for 'Hey Auren' (Speech trigger threshold: RMS {speech_threshold:.1f})...")
+        log(f"Microphone calibrated (Baseline noise RMS: {self.baseline_rms:.1f})")
 
         recording_chunks = []
         is_speaking = False
@@ -519,12 +551,20 @@ class JarvisVoiceEngine:
                         self.state = "STANDBY"
                         HUD.set_state("Auren: Standby", "#64748B", "#1E293B", 0.78)
 
-                    if rms > speech_threshold:
+                    # Dynamic sensitivity threshold:
+                    # In SESSION_ACTIVE, Farhan has already initiated conversation.
+                    # Be highly receptive to natural, quiet, or distant desk speech.
+                    if self.state == "SESSION_ACTIVE":
+                        current_threshold = max(self.baseline_rms * 1.25, 240.0)
+                    else:
+                        current_threshold = max(self.baseline_rms * 1.50, 330.0)
+
+                    if rms > current_threshold:
                         consecutive_voice_chunks += 1
-                        if not is_speaking and consecutive_voice_chunks >= 2:
+                        if not is_speaking and consecutive_voice_chunks >= 1:
                             is_speaking = True
                             recording_chunks = [chunk]
-                            log("Speech detected, buffering audio...")
+                            log(f"Speech detected (RMS {rms:.1f} > {current_threshold:.1f}), buffering audio...")
                             if self.state == "SESSION_ACTIVE":
                                 HUD.set_state("Listening to speech...", "#10B981", "#10B981", 0.92)
                         elif is_speaking:
@@ -542,7 +582,7 @@ class JarvisVoiceEngine:
                                 is_speaking = False
                                 silence_start = 0.0
 
-                                if duration >= 0.65:
+                                if duration >= 0.55:
                                     audio_array = np.concatenate(recording_chunks)
                                     log(f"Audio captured ({duration:.1f}s). Transcribing...")
                                     if self.state == "SESSION_ACTIVE":

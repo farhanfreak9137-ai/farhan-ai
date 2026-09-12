@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import './globals.css';
+import { FloatingVoicePill } from '@/components/voice/FloatingVoicePill';
 
 export const metadata: Metadata = {
   title: 'Auren AI — Personal Operating System',
@@ -15,6 +16,7 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body>
+        <FloatingVoicePill />
         {children}
       </body>
     </html>
