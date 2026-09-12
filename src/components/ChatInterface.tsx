@@ -87,7 +87,7 @@ export function ChatInterface({
       }
     };
 
-    const interval = setInterval(pollVoiceEvents, 1000);
+    const interval = setInterval(pollVoiceEvents, 2000);
     return () => clearInterval(interval);
   }, [onProviderUsedUpdate, onRequestApproval]);
 

@@ -25,6 +25,8 @@ export function middleware(req: NextRequest) {
   let tier = RATE_LIMIT_TIERS.general;
   if (pathname.startsWith('/api/computer-control')) {
     tier = RATE_LIMIT_TIERS.computer;
+  } else if (pathname === '/api/voice/events') {
+    tier = RATE_LIMIT_TIERS.events;
   } else if (pathname.startsWith('/api/voice')) {
     tier = RATE_LIMIT_TIERS.voice;
   } else if (pathname === '/api/health') {

@@ -65,10 +65,12 @@ export default function Home() {
           const providersData = await providersRes.json();
           if (providersData.providers) {
             setProviders(providersData.providers);
-            // Prioritize local Ollama if running (unlimited, 0 rate limit, free)
-            const ollamaProv = providersData.providers.find((p: ProviderInfo) => p.id === 'ollama' && p.configured);
-            if (ollamaProv) {
-              setSelectedProvider('ollama');
+            // Prioritize primary cloud AI providers (Gemini / Groq / OpenAI) with 0% local CPU load
+            const preferred = providersData.providers.find(
+              (p: ProviderInfo) => (p.id === 'gemini' || p.id === 'groq' || p.id === 'openai') && p.configured
+            );
+            if (preferred) {
+              setSelectedProvider(preferred.id);
             } else {
               const firstConfigured = providersData.providers.find(
                 (p: ProviderInfo) => p.configured && p.id !== 'mock'

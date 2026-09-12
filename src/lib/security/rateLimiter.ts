@@ -25,7 +25,8 @@ export const RATE_LIMIT_TIERS: Record<string, RateLimitConfig> = {
   general: { windowMs: 60_000, maxRequests: 60 },
   sensitive: { windowMs: 60_000, maxRequests: 20 },
   computer: { windowMs: 60_000, maxRequests: 20 },
-  voice: { windowMs: 60_000, maxRequests: 30 },
+  voice: { windowMs: 60_000, maxRequests: 60 },
+  events: { windowMs: 60_000, maxRequests: 300 },
   health: { windowMs: 60_000, maxRequests: 120 },
   auth: { windowMs: 60_000, maxRequests: 10 },
 };
