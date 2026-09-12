@@ -70,13 +70,20 @@ def play_chime_done():
     except Exception:
         pass
 
+def play_chime_sleep():
+    """Gentle descending chime (1320Hz -> 880Hz) when Auren goes into standby/sleep."""
+    try:
+        threading.Thread(target=lambda: [winsound.Beep(1320, 70), winsound.Beep(880, 100)], daemon=True).start()
+    except Exception:
+        pass
+
 class DesktopVoiceHUD:
-    """Non-blocking floating visual HUD pill at top-center of screen so Farhan always sees status."""
+    """Semi-transparent floating capsule pinned to top-left corner of screen."""
     def __init__(self):
         self.root = None
         self.label = None
         self.dot = None
-        self.hide_timer = None
+        self.frame = None
         try:
             self.thread = threading.Thread(target=self._run, daemon=True)
             self.thread.start()
@@ -88,55 +95,45 @@ class DesktopVoiceHUD:
             self.root = tk.Tk()
             self.root.overrideredirect(True)
             self.root.attributes("-topmost", True)
-            self.root.attributes("-alpha", 0.94)
-            self.root.config(bg="#0B0F19")
+            self.root.attributes("-alpha", 0.82)
+            self.root.config(bg="#070A12")
 
-            screen_w = self.root.winfo_screenwidth()
-            w = 460
-            h = 44
-            x = (screen_w - w) // 2
+            # Top-left corner of screen
+            w = 340
+            h = 38
+            x = 24
             y = 24
             self.root.geometry(f"{w}x{h}+{x}+{y}")
 
-            frame = tk.Frame(self.root, bg="#0B0F19", highlightthickness=1, highlightbackground="#38BDF8")
-            frame.pack(fill="both", expand=True)
+            self.frame = tk.Frame(self.root, bg="#070A12", highlightthickness=1, highlightbackground="#1E293B")
+            self.frame.pack(fill="both", expand=True)
 
-            self.dot = tk.Label(frame, text="●", fg="#38BDF8", bg="#0B0F19", font=("Segoe UI", 13, "bold"))
-            self.dot.pack(side="left", padx=(14, 6))
+            self.dot = tk.Label(self.frame, text="●", fg="#64748B", bg="#070A12", font=("Segoe UI", 12, "bold"))
+            self.dot.pack(side="left", padx=(12, 6))
 
-            self.label = tk.Label(frame, text="Auren Ready", fg="#F8FAFC", bg="#0B0F19", font=("Segoe UI", 10, "bold"))
-            self.label.pack(side="left", fill="both", expand=True, padx=(0, 14))
+            self.label = tk.Label(self.frame, text="Auren: Standby", fg="#94A3B8", bg="#070A12", font=("Segoe UI", 9, "bold"))
+            self.label.pack(side="left", fill="both", expand=True, padx=(0, 12))
 
-            self.root.withdraw()
+            self.root.deiconify()
             self.root.mainloop()
         except Exception:
             pass
 
-    def show(self, text, color="#38BDF8", duration=4.0):
+    def set_state(self, text, color="#38BDF8", border="#1E293B", alpha=0.85):
         if not self.root:
             return
         def _update():
             try:
+                self.root.attributes("-alpha", alpha)
+                self.frame.config(highlightbackground=border)
                 self.dot.config(fg=color)
-                self.label.config(text=text)
-                self.root.deiconify()
-                if self.hide_timer:
-                    self.hide_timer.cancel()
-                self.hide_timer = threading.Timer(duration, self.hide)
-                self.hide_timer.start()
+                self.label.config(text=text, fg="#F8FAFC" if color != "#64748B" else "#94A3B8")
             except Exception:
                 pass
         try:
             self.root.after(0, _update)
         except Exception:
             pass
-
-    def hide(self):
-        if self.root:
-            try:
-                self.root.after(0, self.root.withdraw)
-            except Exception:
-                pass
 
 HUD = DesktopVoiceHUD()
 
@@ -286,9 +283,6 @@ def transcribe_audio_groq(audio_data: np.ndarray) -> str:
 # ==============================================================================
 # Central Assistant & Fast Media Handlers
 # ==============================================================================
-# ==============================================================================
-# Central Assistant & Fast Media Handlers
-# ==============================================================================
 def handle_hardware_command(command: str) -> bool:
     """Quickly intercepts volume and media control commands in <5ms."""
     low = command.lower().strip()
@@ -297,7 +291,7 @@ def handle_hardware_command(command: str) -> bool:
         for _ in range(5):
             send_key_event(VK_VOLUME_UP)
         play_chime_done()
-        HUD.show("🔊 Volume Up", "#22C55E", 2.0)
+        HUD.set_state("Volume Up", "#22C55E", "#22C55E", 0.92)
         speak("Volume up.")
         return True
 
@@ -305,28 +299,28 @@ def handle_hardware_command(command: str) -> bool:
         for _ in range(5):
             send_key_event(VK_VOLUME_DOWN)
         play_chime_done()
-        HUD.show("🔉 Volume Down", "#22C55E", 2.0)
+        HUD.set_state("Volume Down", "#22C55E", "#22C55E", 0.92)
         speak("Volume down.")
         return True
 
     if any(p in low for p in ["mute audio", "mute pc", "mute volume", "mute sound", "unmute"]):
         send_key_event(VK_VOLUME_MUTE)
         play_chime_done()
-        HUD.show("🔇 Volume Toggled", "#22C55E", 2.0)
+        HUD.set_state("Volume Toggled", "#22C55E", "#22C55E", 0.92)
         speak("Volume toggled.")
         return True
 
     if any(p in low for p in ["pause music", "pause song", "stop music", "resume music", "play pause", "toggle playback"]):
         send_key_event(VK_MEDIA_PLAY_PAUSE)
         play_chime_done()
-        HUD.show("⏯️ Playback Toggled", "#22C55E", 2.0)
+        HUD.set_state("Playback Toggled", "#22C55E", "#22C55E", 0.92)
         speak("Playback toggled.")
         return True
 
     if any(p in low for p in ["next song", "next track", "skip track", "skip song"]):
         send_key_event(VK_MEDIA_NEXT)
         play_chime_done()
-        HUD.show("⏭️ Track Skipped", "#22C55E", 2.0)
+        HUD.set_state("Track Skipped", "#22C55E", "#22C55E", 0.92)
         speak("Track skipped.")
         return True
 
@@ -335,7 +329,7 @@ def handle_hardware_command(command: str) -> bool:
 def route_to_auren_central(command: str):
     """Sends command to Auren Central Assistant API and speaks response."""
     log(f"🤖 Routing command to Central Assistant: \"{command}\"")
-    HUD.show(f"⚡ Processing: \"{command[:38]}\"", "#F59E0B", 6.0)
+    HUD.set_state(f"Processing: \"{command[:26]}\"", "#F59E0B", "#F59E0B", 0.92)
 
     try:
         resp = requests.post(
@@ -350,15 +344,15 @@ def route_to_auren_central(command: str):
             agent = data.get("providerUsed", "Central Assistant")
             log(f"Response from [{agent}]: {answer[:120]}...")
             play_chime_done()
-            HUD.show(f"🔊 Auren: {answer[:42]}", "#22C55E", 4.5)
+            HUD.set_state(f"Auren: {answer[:30]}", "#22C55E", "#22C55E", 0.92)
             speak(answer)
         else:
             log(f"Backend HTTP error: {resp.status_code}")
-            HUD.show("⚠️ Server returned an error", "#EF4444", 3.0)
-            speak(f"Sorry Farhan, the server returned an error.")
+            HUD.set_state("⚠️ Server error", "#EF4444", "#EF4444", 0.85)
+            speak("Sorry Farhan, the server returned an error.")
     except Exception as e:
         log(f"Connection to Auren server failed: {e}")
-        HUD.show("⚠️ Could not reach Auren server", "#EF4444", 3.0)
+        HUD.set_state("⚠️ Connection error", "#EF4444", "#EF4444", 0.85)
         speak("I couldn't reach the Auren server. Is it running on port 3000?")
 
 # ==============================================================================
@@ -380,17 +374,25 @@ WAKE_WORDS = [
     "hey jarvis", "jarvis",
     "hey farhan", "farhan"
 ]
+
 GREETING_PHRASES = ["what's up", "whats up", "how are you", "good morning", "what up", "are you there", "you there"]
+
+SLEEP_PHRASES = [
+    "good night", "goodnight", "sleep", "go to sleep", "standby", "stand by",
+    "stop listening", "bye auren", "bye", "goodbye", "thats all", "that's all",
+    "see you", "see ya", "shut down mic", "mute mic"
+]
 
 class JarvisVoiceEngine:
     def __init__(self):
-        self.state = "IDLE"  # "IDLE" or "AWAITING_COMMAND"
-        self.state_deadline = 0.0
+        self.state = "STANDBY"  # "STANDBY" or "SESSION_ACTIVE"
+        self.last_active_time = time.time()
         self.baseline_rms = 300.0
 
     def calibrate_ambient_noise(self):
         """Samples 1.2s to calibrate ambient microphone noise floor."""
         log("Calibrating ambient room noise...")
+        HUD.set_state("Calibrating mic...", "#F59E0B", "#1E293B", 0.78)
         try:
             samples = sd.rec(int(1.2 * SAMPLE_RATE), samplerate=SAMPLE_RATE, channels=1, dtype='int16')
             sd.wait()
@@ -400,9 +402,10 @@ class JarvisVoiceEngine:
         except Exception as e:
             log(f"Calibration notice: {e}. Using default RMS 300.")
             self.baseline_rms = 300.0
+        HUD.set_state("Auren: Standby", "#64748B", "#1E293B", 0.78)
 
     def process_transcript(self, raw_text: str):
-        """Dispatches transcript based on wake word and conversation state."""
+        """Dispatches transcript based on active session state or standby wake word."""
         if not raw_text:
             return
 
@@ -414,28 +417,48 @@ class JarvisVoiceEngine:
         clean_text = re.sub(r'^[^\w]+|[^\w]+$', '', text)
 
         # -------------------------------------------------------------
-        # 1. Active State: We already greeted Farhan, this is his command
+        # 1. Active Session Mode: Mic is listening continuously!
         # -------------------------------------------------------------
-        if self.state == "AWAITING_COMMAND":
-            if now > self.state_deadline:
-                log("Command window timed out. Returning to IDLE.")
-                self.state = "IDLE"
-                HUD.show("💤 Command window timed out", "#94A3B8", 2.5)
-            else:
-                self.state = "IDLE"
-                log(f"🎯 Received follow-up command: \"{text}\"")
-                HUD.show(f"🎯 Command: \"{text[:38]}\"", "#A855F7", 4.0)
-                # Check for fast hardware action first
-                if not handle_hardware_command(text):
-                    route_to_auren_central(text)
+        if self.state == "SESSION_ACTIVE":
+            # Check for Sleep / Standby Triggers first!
+            if any(re.search(r'\b' + re.escape(sp) + r'\b', low) for sp in SLEEP_PHRASES) or any(low == sp for sp in SLEEP_PHRASES):
+                log(f"🌙 Sleep command detected: '{text}'. Transitioning to STANDBY.")
+                HUD.set_state("Auren: Standby", "#64748B", "#1E293B", 0.78)
+                play_chime_sleep()
+                speak("Good night Farhan, standing by.")
+                self.state = "STANDBY"
+                HUD.set_state("Auren: Standby", "#64748B", "#1E293B", 0.78)
                 return
 
+            # Keep session active!
+            self.last_active_time = time.time()
+            log(f"🎯 [Active Session] Received command: \"{text}\"")
+            HUD.set_state(f"Heard: \"{text[:30]}\"", "#A855F7", "#A855F7", 0.92)
+
+            # Strip any accidental leading wake word if spoken out of habit
+            cleaned_cmd = text
+            for w in WAKE_WORDS:
+                if low.startswith(w):
+                    pattern = r'^\s*' + re.escape(w) + r'[\s,:\.!?]*'
+                    cleaned_cmd = re.sub(pattern, '', text, flags=re.IGNORECASE).strip()
+                    break
+
+            cmd_to_run = cleaned_cmd if cleaned_cmd else text
+
+            # Execute hardware command or central assistant
+            if not handle_hardware_command(cmd_to_run):
+                route_to_auren_central(cmd_to_run)
+
+            # Revert HUD to continuous listening
+            if self.state == "SESSION_ACTIVE":
+                HUD.set_state("Auren: Listening...", "#10B981", "#10B981", 0.90)
+            return
+
         # -------------------------------------------------------------
-        # 2. Idle State: Check for Wake Word ("Hey Auren" / "Auren")
+        # 2. Standby Mode: Waiting for Wake Word ("Hey Auren" / "Auren")
         # -------------------------------------------------------------
         matched_wake = None
         for w in WAKE_WORDS:
-            # Check prefix or exact match
             if low.startswith(w) or re.search(r'\b' + re.escape(w) + r'\b', low):
                 matched_wake = w
                 break
@@ -446,7 +469,9 @@ class JarvisVoiceEngine:
 
         log(f"⚡ Wake word detected: '{matched_wake}' in '{text}'")
         play_chime_wake()
-        HUD.show(f"⚡ Wake word detected: '{matched_wake}'", "#38BDF8", 3.0)
+        self.state = "SESSION_ACTIVE"
+        self.last_active_time = time.time()
+        HUD.set_state("Auren: Listening...", "#10B981", "#10B981", 0.90)
 
         # Extract whatever Farhan said AFTER the wake word
         pattern = r'\b' + re.escape(matched_wake) + r'[\s,:\.!?]*'
@@ -455,27 +480,23 @@ class JarvisVoiceEngine:
 
         # Case A: Two-Stage Conversation (User just said "Hey Auren" or "Hey Auren what's up")
         if not remainder or any(remainder_low == g for g in GREETING_PHRASES):
-            # Speak requested greeting first
             speak("Hey Farhan, what's up?")
-            # Set state deadline AFTER speaking finishes so Farhan gets the full 15 seconds!
-            self.state = "AWAITING_COMMAND"
-            self.state_deadline = time.time() + CONVERSATIONAL_WINDOW
-            HUD.show("🎙️ Auren Listening for your command...", "#38BDF8", 15.0)
+            HUD.set_state("Auren: Listening...", "#10B981", "#10B981", 0.90)
             return
 
         # Case B: One-Shot Command (User said "Hey Auren, play Bohemian Rhapsody")
         log(f"🚀 Executing one-shot command: \"{remainder}\"")
-        HUD.show(f"🚀 One-Shot: \"{remainder[:38]}\"", "#F59E0B", 4.0)
-        self.state = "IDLE"
+        HUD.set_state(f"Heard: \"{remainder[:30]}\"", "#A855F7", "#A855F7", 0.92)
         if not handle_hardware_command(remainder):
             route_to_auren_central(remainder)
+
+        HUD.set_state("Auren: Listening...", "#10B981", "#10B981", 0.90)
 
     def run_listener_loop(self):
         """Continuously monitors microphone with low-power audio streaming."""
         self.calibrate_ambient_noise()
         speech_threshold = max(self.baseline_rms * 2.8, 650.0)
         log(f"Listening for 'Hey Auren' (Speech trigger threshold: RMS {speech_threshold:.1f})...")
-        HUD.show("🟢 Auren Voice Active & Listening", "#22C55E", 3.5)
 
         recording_chunks = []
         is_speaking = False
@@ -492,11 +513,11 @@ class JarvisVoiceEngine:
 
                     now = time.time()
 
-                    # Check conversation window expiry
-                    if self.state == "AWAITING_COMMAND" and now > self.state_deadline:
-                        log("Awaiting command window expired. Resetting to IDLE.")
-                        self.state = "IDLE"
-                        HUD.show("💤 Command window expired", "#94A3B8", 2.0)
+                    # Inactivity auto-park: return to STANDBY after 3 minutes (180s) of silence
+                    if self.state == "SESSION_ACTIVE" and (now - self.last_active_time) > 180.0:
+                        log("Active session auto-parked to STANDBY after 3 minutes of silence.")
+                        self.state = "STANDBY"
+                        HUD.set_state("Auren: Standby", "#64748B", "#1E293B", 0.78)
 
                     if rms > speech_threshold:
                         consecutive_voice_chunks += 1
@@ -504,8 +525,8 @@ class JarvisVoiceEngine:
                             is_speaking = True
                             recording_chunks = [chunk]
                             log("Speech detected, buffering audio...")
-                            if self.state == "AWAITING_COMMAND":
-                                HUD.show("🎙️ Listening to your command...", "#38BDF8", 6.0)
+                            if self.state == "SESSION_ACTIVE":
+                                HUD.set_state("Listening to speech...", "#10B981", "#10B981", 0.92)
                         elif is_speaking:
                             recording_chunks.append(chunk)
                         silence_start = 0.0
@@ -524,17 +545,28 @@ class JarvisVoiceEngine:
                                 if duration >= 0.65:
                                     audio_array = np.concatenate(recording_chunks)
                                     log(f"Audio captured ({duration:.1f}s). Transcribing...")
-                                    HUD.show("🧠 Transcribing speech...", "#A855F7", 2.5)
+                                    if self.state == "SESSION_ACTIVE":
+                                        HUD.set_state("Transcribing speech...", "#A855F7", "#A855F7", 0.92)
                                     transcript = transcribe_audio_groq(audio_array)
                                     clean_h = re.sub(r'[^\w\s]', '', transcript.lower()).strip()
                                     if clean_h and clean_h not in HALLUCINATIONS:
-                                        HUD.show(f"⚡ Heard: \"{transcript[:38]}\"", "#38BDF8", 3.0)
                                         self.process_transcript(transcript)
                                     else:
                                         log(f"Ignored ambient noise: '{transcript}'")
                                 else:
                                     log(f"Ignored short click ({duration:.2f}s).")
+
+                                # Discard any speaker audio buffered while TTS was playing
+                                try:
+                                    if stream.read_available > 0:
+                                        stream.read(stream.read_available)
+                                except Exception:
+                                    pass
+
                                 recording_chunks = []
+                                consecutive_voice_chunks = 0
+                                is_speaking = False
+                                silence_start = 0.0
 
                     # Low-power sleep to keep CPU < 1%
                     time.sleep(0.015)
@@ -550,6 +582,8 @@ if __name__ == "__main__":
     log("=" * 60)
     log("Auren Always-Ready JARVIS Voice Assistant Daemon Starting")
     log("Wake Word: 'Hey Auren' | Voice: en-US-GuyNeural")
+    log("Session Mode: Continuous Active Session | Sleep: 'Good night'")
+    log("HUD: Top-Left Floating Transparent Capsule")
     log("=" * 60)
 
     engine = JarvisVoiceEngine()
