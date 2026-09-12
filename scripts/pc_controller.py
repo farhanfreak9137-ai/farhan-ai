@@ -19,7 +19,9 @@ import ctypes
 import shutil
 import subprocess
 import time
+import re
 import urllib.parse
+import urllib.request
 from pathlib import Path
 from datetime import datetime
 
@@ -790,12 +792,30 @@ def list_registered_apps():
         })
     return {"success": True, "count": len(items), "apps": items}
 
+def resolve_youtube_autoplay(query):
+    """Finds top video ID on YouTube and returns direct autoplay watch URL."""
+    try:
+        q = urllib.parse.quote_plus(query.strip())
+        req = urllib.request.Request(
+            f"https://www.youtube.com/results?search_query={q}",
+            headers={"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"}
+        )
+        with urllib.request.urlopen(req, timeout=4) as resp:
+            html = resp.read().decode("utf-8", errors="ignore")
+        matches = re.findall(r'"videoId":"([a-zA-Z0-9_-]{11})"', html)
+        if matches:
+            # First match is the top search result video!
+            return f"https://www.youtube.com/watch?v={matches[0]}&autoplay=1"
+    except Exception:
+        pass
+    return f"https://www.youtube.com/results?search_query={urllib.parse.quote_plus(query.strip())}"
+
 def web_search(engine, query):
-    """Searches Google or YouTube in the user's default browser on the interactive desktop."""
+    """Searches Google or auto-plays YouTube in the user's default browser on the interactive desktop."""
     attach_to_user_desktop()
     q = urllib.parse.quote_plus(query.strip())
     if engine.lower() == "youtube":
-        url = f"https://www.youtube.com/results?search_query={q}"
+        url = resolve_youtube_autoplay(query)
     else:
         url = f"https://www.google.com/search?q={q}"
     return launch_application(url)

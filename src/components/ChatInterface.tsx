@@ -46,6 +46,51 @@ export function ChatInterface({
     scrollToBottom();
   }, [messages, isStreaming, stepsLog]);
 
+  // Real-time synchronization with background Voice Assistant daemon
+  const lastEventTimestampRef = useRef<number>(Date.now());
+
+  useEffect(() => {
+    const pollVoiceEvents = async () => {
+      try {
+        const res = await fetch(`/api/voice/events?since=${lastEventTimestampRef.current}`);
+        if (res.ok) {
+          const data = await res.json();
+          if (data.events && data.events.length > 0) {
+            for (const event of data.events) {
+              lastEventTimestampRef.current = Math.max(lastEventTimestampRef.current, event.timestamp);
+
+              setMessages((prev) => [
+                ...prev,
+                { role: 'user', content: `🎤 ${event.transcript}` },
+                { role: 'assistant', content: event.responseText },
+              ]);
+
+              if (event.steps && event.steps.length > 0) {
+                setStepsLog((prev) => {
+                  const newIdx = Date.now();
+                  return { ...prev, [newIdx]: event.steps };
+                });
+              }
+
+              if (event.providerUsed) {
+                onProviderUsedUpdate(event.providerUsed as ProviderId);
+              }
+
+              if (event.approvalRequired && onRequestApproval && event.approvalDetails) {
+                onRequestApproval(event.approvalDetails);
+              }
+            }
+          }
+        }
+      } catch {
+        // Silently ignore background polling glitches
+      }
+    };
+
+    const interval = setInterval(pollVoiceEvents, 1000);
+    return () => clearInterval(interval);
+  }, [onProviderUsedUpdate, onRequestApproval]);
+
   const handleSend = async (overrideText?: string) => {
     const textToSend = (overrideText || input).trim();
     if (!textToSend || isStreaming) return;
@@ -141,6 +186,27 @@ export function ChatInterface({
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden', position: 'relative' }}>
+      {/* Live Unified Voice Indicator */}
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          padding: '8px 18px',
+          background: 'rgba(15, 23, 42, 0.75)',
+          borderBottom: '1px solid rgba(255, 255, 255, 0.08)',
+          fontSize: '0.75rem',
+          color: '#94a3b8',
+          backdropFilter: 'blur(8px)',
+        }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#10b981', boxShadow: '0 0 8px #10b981', display: 'inline-block' }} />
+          <span>Unified Auren Voice: <strong style={{ color: '#f8fafc' }}>Always Ready</strong> (Say <em>"Hey Auren"</em>)</span>
+        </div>
+        <span style={{ color: '#64748b', fontSize: '0.7rem' }}>Real-time Text & Voice Sync</span>
+      </div>
+
       {/* Messages */}
       <div style={{ flex: 1, overflowY: 'auto', padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
         {messages.map((msg, idx) => {

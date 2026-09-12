@@ -28,6 +28,9 @@ export const ObservePayload = z.object({});
 export const GoBackPayload = z.object({});
 export const GoForwardPayload = z.object({});
 
+export const SaveSessionPayload = z.object({});
+export const ExtractGigsPayload = z.object({ platform: z.string().optional() });
+
 /** Main request schema with strict discriminated union by action */
 export const ComputerActionRequestSchema = z.discriminatedUnion('action', [
   z.object({ action: z.literal('createSession'), sessionId: z.string().optional(), payload: CreateSessionPayload }),
@@ -42,6 +45,8 @@ export const ComputerActionRequestSchema = z.discriminatedUnion('action', [
   z.object({ action: z.literal('observe'), sessionId: z.string().optional(), payload: ObservePayload }),
   z.object({ action: z.literal('goBack'), sessionId: z.string().optional(), payload: GoBackPayload }),
   z.object({ action: z.literal('goForward'), sessionId: z.string().optional(), payload: GoForwardPayload }),
+  z.object({ action: z.literal('saveSession'), sessionId: z.string().optional(), payload: SaveSessionPayload }),
+  z.object({ action: z.literal('extractGigs'), sessionId: z.string().optional(), payload: ExtractGigsPayload }),
 ]);
 export type ComputerActionRequest = z.infer<typeof ComputerActionRequestSchema>;
 
@@ -216,6 +221,8 @@ export function evaluatePolicy(request: ComputerActionRequest): PolicyDecision {
     'observe',
     'goBack',
     'goForward',
+    'saveSession',
+    'extractGigs',
   ]);
 
   // Actions requiring human authorization before execution

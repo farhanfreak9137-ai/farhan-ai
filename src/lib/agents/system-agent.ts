@@ -647,13 +647,262 @@ const screenCaptureTool: AgentTool = {
 };
 
 // -----------------------------------------------------------------------------
+// Tool 9: play_music
+// -----------------------------------------------------------------------------
+const playMusicTool: AgentTool = {
+  name: 'play_music',
+  description:
+    'Plays requested songs, artists, playlists, or genres via Spotify, YouTube / YouTube Music, or local audio files.',
+  agentId: 'system_agent',
+  inputSchema: z.object({
+    query: z.string().describe('Song title, artist, playlist, or genre (e.g. "Starboy The Weeknd", "Lo-fi study beats", "Interstellar theme")'),
+    service: z.enum(['spotify', 'youtube', 'local', 'auto']).optional().default('auto').describe('Media service to use'),
+  }),
+  execute: async (input: { query: string; service?: 'spotify' | 'youtube' | 'local' | 'auto' }) => {
+    const service = input.service || 'auto';
+    const query = input.query.trim();
+
+    try {
+      if (service === 'spotify') {
+        const spotifyUrl = `https://open.spotify.com/search/${encodeURIComponent(query)}`;
+        const res = await runPcController(['search', 'google', spotifyUrl]);
+        return {
+          toolName: 'play_music',
+          success: res.success,
+          data: { service: 'spotify', query, message: `Opened Spotify search for "${query}".` },
+        };
+      }
+
+      if (service === 'local') {
+        const musicDir = path.join(os.homedir(), 'Music');
+        const res = await runPcController(['app', 'launch', 'wmplayer.exe']);
+        return {
+          toolName: 'play_music',
+          success: res.success,
+          data: { service: 'local', query, message: `Launched media player for local music in ${musicDir}.` },
+        };
+      }
+
+      // Default: YouTube
+      const res = await runPcController(['search', 'youtube', query]);
+      return {
+        toolName: 'play_music',
+        success: res.success,
+        data: { service: 'youtube', query, message: `Playing "${query}" on YouTube.` },
+      };
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      return {
+        toolName: 'play_music',
+        success: false,
+        error: `Failed playing music: ${msg}`,
+      };
+    }
+  },
+};
+
+// -----------------------------------------------------------------------------
+// Tool 10: organize_folder
+// -----------------------------------------------------------------------------
+const organizeFolderTool: AgentTool = {
+  name: 'organize_folder',
+  description:
+    'Organizes cluttered directories (e.g. Downloads or Desktop) into categorized subfolders (Documents, Images, Code, Installers, Archives).',
+  agentId: 'system_agent',
+  inputSchema: z.object({
+    targetDirectory: z.string().optional().default('%DOWNLOADS%').describe('Directory to organize (defaults to %DOWNLOADS%)'),
+    dryRun: z.boolean().optional().default(true).describe('If true, previews planned file moves without modifying files'),
+  }),
+  execute: async (input: { targetDirectory?: string; dryRun?: boolean }) => {
+    const rawTarget = input.targetDirectory || '%DOWNLOADS%';
+    const resolvedDir = resolveSystemPath(rawTarget);
+    const dryRun = input.dryRun !== false;
+
+    try {
+      const entries = await fs.readdir(resolvedDir, { withFileTypes: true });
+      const extensionsMap: Record<string, string> = {
+        pdf: 'Documents',
+        doc: 'Documents',
+        docx: 'Documents',
+        txt: 'Documents',
+        xlsx: 'Documents',
+        pptx: 'Documents',
+        csv: 'Documents',
+        png: 'Images',
+        jpg: 'Images',
+        jpeg: 'Images',
+        gif: 'Images',
+        svg: 'Images',
+        webp: 'Images',
+        mp4: 'Media',
+        mkv: 'Media',
+        mp3: 'Media',
+        wav: 'Media',
+        zip: 'Archives',
+        rar: 'Archives',
+        '7z': 'Archives',
+        tar: 'Archives',
+        gz: 'Archives',
+        exe: 'Installers',
+        msi: 'Installers',
+        ts: 'Code',
+        js: 'Code',
+        py: 'Code',
+        html: 'Code',
+        css: 'Code',
+        json: 'Code',
+        cpp: 'Code',
+        java: 'Code',
+      };
+
+      const plannedMoves: Array<{ file: string; from: string; to: string; category: string }> = [];
+
+      for (const entry of entries) {
+        if (!entry.isFile() || entry.name.startsWith('.')) continue;
+        const ext = path.extname(entry.name).toLowerCase().replace(/^\./, '');
+        const category = extensionsMap[ext];
+        if (category) {
+          const destDir = path.join(resolvedDir, category);
+          const destFile = path.join(destDir, entry.name);
+          const srcFile = path.join(resolvedDir, entry.name);
+          plannedMoves.push({ file: entry.name, from: srcFile, to: destFile, category });
+        }
+      }
+
+      if (dryRun) {
+        return {
+          toolName: 'organize_folder',
+          success: true,
+          data: {
+            dryRun: true,
+            targetDirectory: resolvedDir,
+            filesToMoveCount: plannedMoves.length,
+            plannedMoves: plannedMoves.slice(0, 30),
+            message: `Found ${plannedMoves.length} files to organize into categories. Set dryRun: false to apply.`,
+          },
+        };
+      }
+
+      // Execute moves
+      let movedCount = 0;
+      for (const item of plannedMoves) {
+        const destDir = path.dirname(item.to);
+        await fs.mkdir(destDir, { recursive: true });
+        await fs.rename(item.from, item.to);
+        movedCount++;
+      }
+
+      return {
+        toolName: 'organize_folder',
+        success: true,
+        data: {
+          dryRun: false,
+          targetDirectory: resolvedDir,
+          movedCount,
+          message: `Successfully organized ${movedCount} files in ${resolvedDir}.`,
+        },
+      };
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      return {
+        toolName: 'organize_folder',
+        success: false,
+        error: `Failed organizing folder: ${msg}`,
+      };
+    }
+  },
+};
+
+// -----------------------------------------------------------------------------
+// Tool 11: manage_github_repository
+// -----------------------------------------------------------------------------
+const manageGithubRepositoryTool: AgentTool = {
+  name: 'manage_github_repository',
+  description:
+    'Manages Git repository actions (status, recent commits, staging, commit, push, create repo) on local workspaces.',
+  agentId: 'system_agent',
+  inputSchema: z.object({
+    action: z.enum(['status', 'recent_commits', 'commit', 'push', 'create_repo']).describe('Git action to perform'),
+    workingDir: z.string().optional().describe('Repository directory path (defaults to current project root)'),
+    commitMessage: z.string().optional().describe('Commit message when action is "commit"'),
+    repoName: z.string().optional().describe('GitHub repository name when action is "create_repo"'),
+  }),
+  execute: async (input: { action: 'status' | 'recent_commits' | 'commit' | 'push' | 'create_repo'; workingDir?: string; commitMessage?: string; repoName?: string }) => {
+    const cwd = input.workingDir ? resolveSystemPath(input.workingDir) : process.cwd();
+
+    try {
+      if (input.action === 'status') {
+        const { stdout } = await execAsync('git status -s', { cwd });
+        return {
+          toolName: 'manage_github_repository',
+          success: true,
+          data: { action: 'status', output: stdout || 'Working tree clean, no uncommitted changes.' },
+        };
+      }
+
+      if (input.action === 'recent_commits') {
+        const { stdout } = await execAsync('git log -n 5 --oneline', { cwd });
+        return {
+          toolName: 'manage_github_repository',
+          success: true,
+          data: { action: 'recent_commits', commits: stdout.trim().split('\n') },
+        };
+      }
+
+      if (input.action === 'commit') {
+        if (!input.commitMessage) {
+          return { toolName: 'manage_github_repository', success: false, error: 'commitMessage is required for commit action' };
+        }
+        await execAsync('git add .', { cwd });
+        const { stdout } = await execAsync(`git commit -m "${input.commitMessage.replace(/"/g, '\\"')}"`, { cwd });
+        return {
+          toolName: 'manage_github_repository',
+          success: true,
+          data: { action: 'commit', message: input.commitMessage, output: stdout },
+        };
+      }
+
+      if (input.action === 'push') {
+        const { stdout } = await execAsync('git push', { cwd });
+        return {
+          toolName: 'manage_github_repository',
+          success: true,
+          data: { action: 'push', output: stdout },
+        };
+      }
+
+      if (input.action === 'create_repo') {
+        const repo = input.repoName || path.basename(cwd);
+        const { stdout } = await execAsync(`gh repo create "${repo}" --private --source=. --push`, { cwd }).catch(async () => {
+          return await execAsync('git remote -v', { cwd });
+        });
+        return {
+          toolName: 'manage_github_repository',
+          success: true,
+          data: { action: 'create_repo', repo, output: stdout },
+        };
+      }
+
+      return { toolName: 'manage_github_repository', success: false, error: `Unknown action: ${input.action}` };
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      return {
+        toolName: 'manage_github_repository',
+        success: false,
+        error: `Git action failed: ${msg}`,
+      };
+    }
+  },
+};
+
+// -----------------------------------------------------------------------------
 // SystemAgent Declaration
 // -----------------------------------------------------------------------------
 export const SystemAgent: Agent = {
   id: 'system_agent',
   name: 'System Agent',
   description:
-    'Full Windows operating system control: offline file management, process termination, window/desktop control, audio/media keys, screen capture, CLI commands, and real-time hardware diagnostics.',
+    'Full Windows operating system control: offline file management, process termination, window/desktop control, audio/media keys, music playback, Git/GitHub actions, smart folder organization, screen capture, CLI commands, and real-time hardware diagnostics.',
   capabilities: [
     'command_execution',
     'file_manipulation',
@@ -664,6 +913,9 @@ export const SystemAgent: Agent = {
     'audio_media_control',
     'process_management',
     'screen_capture',
+    'music_playback',
+    'folder_organization',
+    'git_management',
   ],
   tools: [
     executeCommandTool,
@@ -674,6 +926,9 @@ export const SystemAgent: Agent = {
     audioMediaControlTool,
     processManagementTool,
     screenCaptureTool,
+    playMusicTool,
+    organizeFolderTool,
+    manageGithubRepositoryTool,
   ],
 };
 

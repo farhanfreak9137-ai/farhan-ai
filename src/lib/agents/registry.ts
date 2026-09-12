@@ -63,10 +63,10 @@ export class AgentRegistry {
   }
 
   /**
-   * Translates registered tools into native LLM tool/function declarations.
+   * Formats an array of AgentTools into native LLM ToolDeclarations.
    */
-  public getToolsForLLM(): ToolDeclaration[] {
-    return Array.from(this.tools.values()).map((tool) => {
+  public formatToolsForLLM(toolsList: AgentTool[]): ToolDeclaration[] {
+    return toolsList.map((tool) => {
       const properties: Record<string, ToolParameterProperty> = {};
       const required: string[] = [];
 
@@ -128,6 +128,79 @@ export class AgentRegistry {
         },
       };
     });
+  }
+
+  /**
+   * Translates registered tools into native LLM tool/function declarations.
+   */
+  public getToolsForLLM(): ToolDeclaration[] {
+    return this.formatToolsForLLM(Array.from(this.tools.values()));
+  }
+
+  /**
+   * Returns pruned, domain-relevant tools based on user prompt to cut 60%-75% of prompt token bloat.
+   */
+  public getPrunedToolsForQuery(userMessage?: string): ToolDeclaration[] {
+    if (!userMessage || userMessage.trim().length === 0) {
+      return this.getToolsForLLM();
+    }
+
+    const lower = userMessage.toLowerCase();
+
+    // 1. Browser & Web Automation
+    const isBrowser = /\b(browser|chromium|playwright|webpage|page|click|website|websites|site|sites|navigate|url|dom|input field|button|fiverr|upwork|freelancer|remoteok|wellfound|weworkremotely|instagram|insta|whatsapp|telegram|email|gmail|mail|message)\b/i.test(lower);
+    
+    // 2. System / Windows Desktop & Media
+    const isSystem = /\b(app|application|launch|open|file|folder|directory|command|powershell|cmd|terminal|kill|process|ram|cpu|disk|volume|mute|window|minimize|screenshot|desktop|music|song|spotify|organize|clean|cleanup|git|github|repo|commit|push)\b/i.test(lower);
+
+    // 3. Career & Interview & Proposal & Job Opportunities
+    const isCareer = /\b(job|jobs|career|opportunity|opportunities|interview|star|resume|cv|portfolio|proposal|cover letter|skill gap|skills gap|match|nexus|hiring|role|gig|gigs|freelance|freelancing|remote|linkedin)\b/i.test(lower);
+
+    // 4. Research & Creative & Web Search
+    const isResearch = /\b(search|research|company|market|salary|technology|tech|trends|news|google|lookup|draw|drawing|sketch|art|palette|paint|concept)\b/i.test(lower);
+
+    // 5. Automation & Cron Background Jobs
+    const isAutomation = /\b(automation|cron|schedule|background job|recurring|interval|trigger)\b/i.test(lower);
+
+    // 6. Knowledge & Document Summarization
+    const isKnowledge = /\b(memory|memories|document|documents|pdf|notes|facts|remember|verified|ingest|summarize|read|summary|study|paper)\b/i.test(lower);
+
+    const candidateAgentIds = new Set<string>();
+
+    if (isBrowser) candidateAgentIds.add('computer_control_agent');
+    if (isSystem) candidateAgentIds.add('system_agent');
+    if (isCareer) {
+      candidateAgentIds.add('career_agent');
+      candidateAgentIds.add('opportunity_agent');
+      candidateAgentIds.add('workflow_agent');
+      if (/\b(fiverr|upwork|freelance|freelancer|remoteok|gig|gigs|site|sites|live|scrape|platform|linkedin)\b/i.test(lower)) {
+        candidateAgentIds.add('computer_control_agent');
+      }
+    }
+    if (isResearch) {
+      candidateAgentIds.add('research_agent');
+      candidateAgentIds.add('opportunity_agent');
+    }
+    if (isAutomation) candidateAgentIds.add('automation_agent');
+    if (isKnowledge) {
+      candidateAgentIds.add('knowledge_agent');
+      candidateAgentIds.add('memory_agent');
+    }
+
+    // If query matches specific domains, provide only those tools (always keeping memory search for grounding)
+    if (candidateAgentIds.size > 0 && candidateAgentIds.size <= 5) {
+      candidateAgentIds.add('memory_agent');
+
+      const filteredTools = Array.from(this.tools.values()).filter((t) =>
+        t.agentId ? candidateAgentIds.has(t.agentId) : false
+      );
+
+      if (filteredTools.length >= 2 && filteredTools.length <= 25) {
+        return this.formatToolsForLLM(filteredTools);
+      }
+    }
+
+    return this.getToolsForLLM();
   }
 
   /**

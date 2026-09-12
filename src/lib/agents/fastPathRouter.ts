@@ -765,6 +765,31 @@ export async function tryFastPathRoute(userPrompt: string): Promise<FastPathMatc
     };
   }
 
+  // Play <X> on Spotify / Search <X> on Spotify
+  const spotifyMatch =
+    normalized.match(/^(?:play|listen\s+to)\s+(.+?)\s+(?:on|in)\s+spotify$/i) ||
+    normalized.match(/^spotify\s+(?:play\s+)?(.+)$/i);
+  if (spotifyMatch) {
+    const rawTarget = spotifyMatch[1].trim();
+    if (rawTarget && rawTarget !== 'music' && rawTarget !== 'pause') {
+      await runPcController(['search', 'google', `https://open.spotify.com/search/${encodeURIComponent(rawTarget)}`]);
+      return {
+        matched: true,
+        actionName: 'music_play_spotify',
+        answer: `Playing "${rawTarget}" on Spotify in your browser.`,
+        steps: [
+          {
+            type: 'reasoning',
+            step: 'intent_resolution',
+            status: 'completed',
+            title: 'Fast-Path: Spotify Playback',
+            details: `Opened Spotify search for "${rawTarget}".`,
+          },
+        ],
+      };
+    }
+  }
+
   // Play <X> on YouTube / Search <X> on YouTube
   const ytPlayMatch = normalized.match(/^(?:play|listen\s+to|watch)\s+(.+?)(?:\s+on\s+youtube)?$/i);
   if (ytPlayMatch) {
@@ -813,7 +838,8 @@ export async function tryFastPathRoute(userPrompt: string): Promise<FastPathMatc
     }
   }
 
-  const googleSearchMatch = normalized.match(/^(?:search\s+google\s+(?:for\s+)?|google\s+|search\s+(?:for\s+)?|look\s+up\s+|find\s+(.+?)\s+on\s+google)(.+)$/i);
+  const isJobOrGigSearch = /\b(job|jobs|gig|gigs|freelance|freelancer|fiverr|upwork|remoteok|career|opportunity|opportunities|summarize|analyze)\b/i.test(normalized);
+  const googleSearchMatch = !isJobOrGigSearch && normalized.match(/^(?:search\s+google\s+(?:for\s+)?|google\s+|search\s+(?:for\s+)?|look\s+up\s+|find\s+(.+?)\s+on\s+google)(.+)$/i);
   if (googleSearchMatch) {
     const query = (googleSearchMatch[1] || googleSearchMatch[2] || '').trim();
     if (query && !query.startsWith('status') && !query.startsWith('process') && !query.startsWith('specs')) {

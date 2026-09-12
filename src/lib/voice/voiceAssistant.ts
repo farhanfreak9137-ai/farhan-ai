@@ -11,6 +11,7 @@ import {
 } from './types';
 import { handleComputerApprove } from '@/lib/computer/service';
 import { defaultWorkflowEngine } from '@/lib/workflows/engine';
+import { recordVoiceEvent } from './voiceEvents';
 
 /**
  * Matches phrases indicating approval confirmation.
@@ -67,7 +68,7 @@ export async function processVoiceCommand(request: VoiceCommandRequest): Promise
       console.warn('[VoiceAssistant] TTS synthesis error:', err);
     }
 
-    return {
+    const approvalPayload = {
       transcript,
       responseText: approvalResolution.responseText,
       responseAudio,
@@ -76,6 +77,16 @@ export async function processVoiceCommand(request: VoiceCommandRequest): Promise
       approvalRequired: approvalResolution.approvalRequired,
       approvalDetails: approvalResolution.approvalDetails,
     };
+
+    recordVoiceEvent({
+      transcript,
+      responseText: approvalResolution.responseText,
+      providerUsed: provider.id,
+      approvalRequired: approvalResolution.approvalRequired,
+      approvalDetails: approvalResolution.approvalDetails,
+    });
+
+    return approvalPayload;
   }
 
   // 3. Central Assistant execution
@@ -107,6 +118,21 @@ export async function processVoiceCommand(request: VoiceCommandRequest): Promise
     }
   }
 
+  const mappedSteps = assistantResult.steps.map((s, idx) => ({
+    step: s.step || `step-${idx + 1}`,
+    title: s.title,
+    description: s.details || s.title,
+  }));
+
+  recordVoiceEvent({
+    transcript,
+    responseText,
+    providerUsed: assistantResult.providerUsed || provider.id,
+    approvalRequired,
+    approvalDetails,
+    steps: mappedSteps,
+  });
+
   return {
     transcript,
     responseText,
@@ -115,11 +141,7 @@ export async function processVoiceCommand(request: VoiceCommandRequest): Promise
     providerUsed: assistantResult.providerUsed || provider.id,
     approvalRequired,
     approvalDetails,
-    steps: assistantResult.steps.map((s, idx) => ({
-      step: s.step || `step-${idx + 1}`,
-      title: s.title,
-      description: s.details || s.title,
-    })),
+    steps: mappedSteps,
   };
 }
 

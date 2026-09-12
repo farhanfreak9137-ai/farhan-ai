@@ -2,184 +2,354 @@ import { UserProfile } from '@/types/profile';
 
 export const defaultProfile: UserProfile = {
   personalInfo: {
-    fullName: 'Farhan',
+    fullName: 'Md Farhan Hossain',
     preferredName: 'Farhan',
-    headline: 'AI Software Engineer & Full-Stack Systems Architect',
-    bio: 'Software engineer specializing in modern TypeScript/Next.js architectures, AI agent orchestration, and high-performance web systems. Passionate about autonomous agents, developer tooling, and career acceleration platforms.',
-    email: 'farhan@example.com',
+    headline: 'Self-taught Software Developer & AI Builder',
+    bio: 'Self-taught Software Developer and AI Builder focused on AI engineering, software development, and cloud technologies. Began programming in March 2026 and progressed from foundational HTML/CSS into modern web development, AI/LLM application development, automation, computer vision, local RAG systems, and multi-provider AI orchestration through intensive independent learning and project-based development. Builds and personally uses full applications rather than limiting development to tutorials or isolated experiments. Experienced in designing AI-powered systems, local-first applications, structured data architectures, browser automation, native Android integrations, and safety-conscious agent workflows. Known for being self-directed, adaptable, fast-learning, and persistent when working with unfamiliar technologies. Dedicates approximately 6 hours per day to programming and development.',
+    email: 'farhan.sajid1896@gmail.com',
     location: 'Dhaka, Bangladesh',
     links: {
-      github: 'https://github.com/farhan',
-      linkedin: 'https://linkedin.com/in/farhan',
-      portfolio: 'https://farhan.dev',
+      github: 'https://github.com/farhanfreak9137-ai',
+      linkedin: '',
+      portfolio: 'https://portfolio-two-chi-dgvbedq05m.vercel.app/',
       twitter: '',
     },
   },
   careerPreferences: {
     targetRoles: [
-      'AI Software Engineer',
-      'Senior Full-Stack Engineer',
-      'AI Systems Architect',
-      'Agentic Systems Developer',
+      'AI Engineer',
+      'Software Engineer',
+      'Cloud Engineer',
+      'Full-Stack Developer',
+      'Frontend Developer',
+      'AI-powered Application Developer',
+      'Intelligent Automation Developer',
+      'Developer Tools & Agent Systems Engineer',
     ],
     preferredIndustries: [
       'Artificial Intelligence & Developer Tools',
-      'Enterprise SaaS',
-      'Tech & Productivity',
+      'Intelligent Automation & Productivity Systems',
+      'Cloud Engineering & Full-Stack Applications',
     ],
     workModel: 'remote',
-    preferredLocations: ['Remote (Worldwide)', 'Remote (US/EU/Asia Timezones)'],
-    noticePeriodDays: 30,
+    preferredLocations: ['Remote (Worldwide)', 'Remote (US/EU/Asia Timezones)', 'Dhaka, Bangladesh'],
+    noticePeriodDays: 14,
     shortTermGoals: [
-      'Master agentic tool calling, autonomous workflows, and production RAG pipelines.',
-      'Deploy Farhan AI as a fully functioning personal career operating system.',
-      'Publish high-impact technical articles and open-source agent projects.',
+      'Master advanced AI agent architectures, multi-provider model failover, and local-first systems.',
+      'Deploy production-ready full-stack and autonomous agent applications.',
+      'Continue intensive self-directed engineering learning (~6 hours daily) and open-source building.',
     ],
     longTermGoals: [
-      'Lead AI architecture for cutting-edge autonomous software agents.',
-      'Build scalable multi-agent systems serving thousands of developers.',
-      'Continuously innovate at the intersection of web frameworks and large language models.',
+      'Lead engineering of high-impact AI systems, intelligent automation, and developer platforms.',
+      'Innovate in local-first, privacy-preserving AI, agentic systems, and computer vision applications.',
     ],
     coreValues: [
-      'Engineering Craftsmanship & Zero-BS Code',
-      'Extreme Ownership & Autonomy',
-      'Rapid Continuous Learning',
-      'High Practical Impact & User Value',
+      'Self-Directed Learning & Practical Building (Build and personally use full applications)',
+      'Adaptability & Extreme Persistence with Unfamiliar Technologies',
+      'Safety-Conscious Agent Design & Zero-BS Clean Code',
+      'High Engineering Craftsmanship & Problem-Solving Mindset',
     ],
   },
   skills: [
     {
       category: 'Languages & Core',
       skills: [
-        { name: 'TypeScript', proficiency: 'advanced', yearsOfExperience: 4, highlight: true },
-        { name: 'JavaScript (ESNext)', proficiency: 'expert', yearsOfExperience: 5, highlight: true },
-        { name: 'Python', proficiency: 'advanced', yearsOfExperience: 3, highlight: true },
-        { name: 'SQL', proficiency: 'advanced', yearsOfExperience: 4, highlight: false },
-        { name: 'HTML5 & Modern CSS', proficiency: 'expert', yearsOfExperience: 5, highlight: false },
+        { name: 'TypeScript', proficiency: 'advanced', yearsOfExperience: 1, highlight: true },
+        { name: 'JavaScript (ESNext)', proficiency: 'expert', yearsOfExperience: 1, highlight: true },
+        { name: 'Python', proficiency: 'advanced', yearsOfExperience: 1, highlight: true },
+        { name: 'Java', proficiency: 'intermediate', yearsOfExperience: 1, highlight: false },
+        { name: 'HTML5 & CSS3', proficiency: 'expert', yearsOfExperience: 1, highlight: true },
+        { name: 'Vanilla CSS', proficiency: 'expert', yearsOfExperience: 1, highlight: false },
+        { name: 'SQL', proficiency: 'intermediate', yearsOfExperience: 1, highlight: false },
       ],
     },
     {
-      category: 'AI & Agentic Systems',
+      category: 'AI, LLMs & Agentic Systems',
       skills: [
-        { name: 'LLM Orchestration & Prompt Engineering', proficiency: 'advanced', yearsOfExperience: 2, highlight: true },
-        { name: 'Function & Tool Calling', proficiency: 'advanced', yearsOfExperience: 2, highlight: true },
-        { name: 'RAG & Vector Context Injection', proficiency: 'advanced', yearsOfExperience: 2, highlight: true },
-        { name: 'Multi-Model Fallbacks & Routing', proficiency: 'advanced', yearsOfExperience: 1, highlight: true },
-        { name: 'Agent Memory & State Management', proficiency: 'intermediate', yearsOfExperience: 1, highlight: false },
+        { name: 'Multi-Model AI Orchestration', proficiency: 'expert', yearsOfExperience: 1, highlight: true },
+        { name: 'Google Gemini SDK', proficiency: 'advanced', yearsOfExperience: 1, highlight: true },
+        { name: 'Groq Cloud LPUs', proficiency: 'advanced', yearsOfExperience: 1, highlight: true },
+        { name: 'OpenAI APIs & OpenRouter', proficiency: 'advanced', yearsOfExperience: 1, highlight: true },
+        { name: 'Ollama & Local LLMs', proficiency: 'advanced', yearsOfExperience: 1, highlight: true },
+        { name: 'Retrieval-Augmented Generation (RAG)', proficiency: 'advanced', yearsOfExperience: 1, highlight: true },
+        { name: 'Vector Similarity Search', proficiency: 'advanced', yearsOfExperience: 1, highlight: true },
+        { name: 'AI Tool Calling & Function Calling', proficiency: 'expert', yearsOfExperience: 1, highlight: true },
+        { name: 'Structured LLM Outputs (Zod)', proficiency: 'expert', yearsOfExperience: 1, highlight: true },
+        { name: 'AI Safety & Human-in-the-Loop Workflows', proficiency: 'expert', yearsOfExperience: 1, highlight: true },
+        { name: 'Prompt Engineering', proficiency: 'expert', yearsOfExperience: 1, highlight: true },
+        { name: 'Computer Vision Concepts (WebRTC / Canvas analysis)', proficiency: 'intermediate', yearsOfExperience: 1, highlight: true },
       ],
     },
     {
-      category: 'Frameworks & Web',
+      category: 'Frameworks & Web Development',
       skills: [
-        { name: 'Next.js (App Router)', proficiency: 'advanced', yearsOfExperience: 3, highlight: true },
-        { name: 'React', proficiency: 'expert', yearsOfExperience: 4, highlight: true },
-        { name: 'Node.js', proficiency: 'advanced', yearsOfExperience: 4, highlight: true },
-        { name: 'Express / Fastify', proficiency: 'advanced', yearsOfExperience: 3, highlight: false },
-        { name: 'REST & Streaming APIs', proficiency: 'expert', yearsOfExperience: 4, highlight: true },
+        { name: 'Next.js 16 (App Router & Turbopack)', proficiency: 'advanced', yearsOfExperience: 1, highlight: true },
+        { name: 'React 19', proficiency: 'expert', yearsOfExperience: 1, highlight: true },
+        { name: 'Vite', proficiency: 'advanced', yearsOfExperience: 1, highlight: false },
+        { name: 'Tailwind CSS (v3 & v4)', proficiency: 'expert', yearsOfExperience: 1, highlight: true },
+        { name: 'Framer Motion', proficiency: 'intermediate', yearsOfExperience: 1, highlight: false },
+        { name: 'Node.js', proficiency: 'advanced', yearsOfExperience: 1, highlight: true },
+        { name: 'REST & Streaming APIs', proficiency: 'expert', yearsOfExperience: 1, highlight: true },
+        { name: 'KaTeX & LaTeX Preprocessing', proficiency: 'advanced', yearsOfExperience: 1, highlight: false },
+        { name: 'Zustand State Management', proficiency: 'expert', yearsOfExperience: 1, highlight: true },
       ],
     },
     {
-      category: 'Databases & Infrastructure',
+      category: 'Databases, Mobile & Automation',
       skills: [
-        { name: 'PostgreSQL', proficiency: 'advanced', yearsOfExperience: 3, highlight: true },
-        { name: 'Redis', proficiency: 'intermediate', yearsOfExperience: 2, highlight: false },
-        { name: 'Docker', proficiency: 'intermediate', yearsOfExperience: 2, highlight: false },
-        { name: 'Git & GitHub Actions', proficiency: 'advanced', yearsOfExperience: 4, highlight: true },
-        { name: 'Vercel & Cloudflare Workers', proficiency: 'advanced', yearsOfExperience: 2, highlight: false },
+        { name: 'SQLite & Drizzle ORM', proficiency: 'expert', yearsOfExperience: 1, highlight: true },
+        { name: 'PostgreSQL & Prisma', proficiency: 'intermediate', yearsOfExperience: 1, highlight: false },
+        { name: 'Firebase Cloud Firestore', proficiency: 'advanced', yearsOfExperience: 1, highlight: true },
+        { name: 'Supabase', proficiency: 'advanced', yearsOfExperience: 1, highlight: true },
+        { name: 'Playwright Browser Automation', proficiency: 'advanced', yearsOfExperience: 1, highlight: true },
+        { name: 'Windows PowerShell, CMD & Win32 API', proficiency: 'advanced', yearsOfExperience: 1, highlight: true },
+        { name: 'Capacitor & Native Android Integration', proficiency: 'intermediate', yearsOfExperience: 1, highlight: true },
+        { name: 'Git & GitHub', proficiency: 'advanced', yearsOfExperience: 1, highlight: true },
+        { name: 'Vercel & Netlify Deployment', proficiency: 'advanced', yearsOfExperience: 1, highlight: false },
+        { name: 'Local-First / Offline-First Architecture', proficiency: 'expert', yearsOfExperience: 1, highlight: true },
       ],
     },
   ],
   experience: [
     {
       id: 'exp-1',
-      role: 'Full-Stack & AI Engineer',
-      company: 'Tech Solutions Studio',
-      location: 'Remote',
+      role: 'Checkout Assistant / POS Cashier',
+      company: 'Shwapno',
+      location: 'Dhaka, Bangladesh',
       employmentType: 'full-time',
-      startDate: '2023-01',
-      current: true,
-      summary: 'Architecting modern web applications, LLM-powered internal tools, and high-performance TypeScript microservices.',
-      achievements: [
-        'Designed and implemented autonomous AI assistant workflows reducing customer inquiry response times by 45%.',
-        'Led migration of frontend applications to Next.js App Router, boosting page load speeds and SEO Core Web Vitals.',
-        'Engineered streaming REST endpoints with real-time SSE updates for concurrent users.',
-        'Mentored junior engineers on clean TypeScript patterns, strict type-safety, and test-driven development.',
-      ],
-      technologiesUsed: ['TypeScript', 'Next.js', 'React', 'Node.js', 'PostgreSQL', 'OpenAI API', 'Docker'],
-    },
-    {
-      id: 'exp-2',
-      role: 'Software Developer',
-      company: 'Digital Innovation Labs',
-      location: 'Dhaka',
-      employmentType: 'full-time',
-      startDate: '2021-06',
-      endDate: '2022-12',
+      startDate: '2025-07',
+      endDate: '2025-12',
       current: false,
-      summary: 'Developed robust client-facing web portals and scalable backend database pipelines.',
+      summary: 'Operated POS checkout systems and processed customer transactions in a fast-paced retail environment.',
       achievements: [
-        'Built full-stack dashboards using React, Node.js, and PostgreSQL for enterprise clients.',
-        'Implemented authentication, RBAC authorization, and automated regression test pipelines.',
-        'Optimized database queries and indexing strategies, slashing query latencies by 35%.',
+        'Operated POS checkout systems and processed customer transactions accurately in a fast-paced retail environment.',
+        'Managed checkout responsibilities while maintaining professionalism and strong customer-facing communication.',
+        'Developed practical experience in workplace responsibility, time management, and adapting to operational requirements.',
+        'Concluded the role in December 2025 to dedicate focused attention to academic studies and software engineering.',
       ],
-      technologiesUsed: ['JavaScript', 'React', 'Node.js', 'Express', 'PostgreSQL', 'Git'],
+      technologiesUsed: ['POS Checkout Systems', 'Retail Operations', 'Customer Service'],
     },
   ],
   education: [
     {
       id: 'edu-1',
-      institution: 'University of Engineering and Technology',
-      degree: 'Bachelor of Science',
-      fieldOfStudy: 'Computer Science & Engineering',
-      startDate: '2017',
-      endDate: '2021',
-      gradeOrGpa: '3.8 / 4.0',
+      institution: 'Pallabi Government College',
+      degree: 'Higher Secondary Certificate (HSC)',
+      fieldOfStudy: 'Science (2nd Year — Expected 2027)',
+      startDate: '2025',
+      endDate: '2027',
+      gradeOrGpa: 'Currently pursuing 2nd Year',
       highlights: [
-        'Major focus on Data Structures, Algorithms, Software Architecture, and Distributed Systems.',
-        'Undergraduate Thesis: Intelligent automated decision support systems.',
+        'Currently pursuing HSC-level studies in the Science stream.',
+        'Independently studying AI engineering, software architecture, and practical application building.',
+      ],
+    },
+    {
+      id: 'edu-2',
+      institution: 'Milestone College',
+      degree: 'Higher Secondary Certificate (HSC)',
+      fieldOfStudy: 'Science (1st Year)',
+      startDate: '2024',
+      endDate: '2025',
+      gradeOrGpa: 'Completed 1st Year',
+      highlights: [
+        'Foundational science studies in Physics, Chemistry, Higher Mathematics, and ICT.',
+      ],
+    },
+    {
+      id: 'edu-3',
+      institution: 'MDC Model School & College',
+      degree: 'Secondary School Certificate (SSC)',
+      fieldOfStudy: 'Science',
+      startDate: '2023',
+      endDate: '2025',
+      gradeOrGpa: 'GPA 4.11 / 5.0',
+      highlights: [
+        'Completed SSC examination in Science stream with GPA 4.11.',
       ],
     },
   ],
   projects: [
     {
       id: 'proj-1',
-      title: 'Farhan AI — Personal AI Career Operating System',
-      description: 'An intelligent personal AI agent with swappable LLM providers, multi-API failover, structured memory, and strict anti-hallucination career grounding.',
+      title: 'Auren — Personal Career Operating System & Autonomous Desktop Copilot',
+      description: 'Local-first personal AI career operating system and desktop agent orchestrator designed around multi-provider AI failover, grounded personal knowledge, audited automation, and human approval boundaries.',
       role: 'Creator & Lead Architect',
-      technologies: ['TypeScript', 'Next.js', 'App Router', 'Zod', 'Gemini API', 'OpenAI API'],
-      outcomesOrImpact: [
-        'Supports multi-provider LLM failover with automatic fallback to prevent rate limits.',
-        'Enforces strict factual boundaries: AI never hallucinates or fabricates background details.',
-        'Full document ingestion and context-aware career Q&A capability.',
+      technologies: [
+        'Next.js 16',
+        'React 19',
+        'TypeScript',
+        'Google Gemini SDK',
+        'OpenAI SDK',
+        'Groq',
+        'Ollama',
+        'Python',
+        'Playwright',
+        'SQLite',
+        'Drizzle ORM',
+        'Zod',
+        'PowerShell',
+        'Win32 API',
       ],
-      githubUrl: 'https://github.com/farhan/farhan-ai',
-      liveUrl: '',
+      outcomesOrImpact: [
+        'Designed a centralized AI assistant orchestrator capable of dynamically registering and exposing 58 tools for multi-step function calling.',
+        'Built a multi-tier AI failover architecture rotating across 3 Gemini API keys, Groq Cloud LPUs (qwen/qwen3.8-27b), and local Ollama (qwen2.5:1.5b) when rate limits occur.',
+        'Developed intent-based tool pruning that reduces exposed tools per request, slashing prompt-token overhead by 65%-82%.',
+        'Implemented an offline Windows fast-path for desktop and system operations in <20ms without consuming cloud tokens.',
+        'Built human-in-the-loop approval system, verified personal memory with confidence scoring, and audited Playwright browser automation with SSRF protection.',
+      ],
+      githubUrl: 'https://github.com/farhanfreak9137-ai',
+      liveUrl: 'http://localhost:3000',
       featured: true,
     },
     {
       id: 'proj-2',
-      title: 'Autonomous Workflow & Agent Orchestrator',
-      description: 'An event-driven task automation framework capable of dynamic tool calling, step-by-step verification, and external API execution.',
-      role: 'Sole Developer',
-      technologies: ['TypeScript', 'Node.js', 'Zod', 'SSE Streaming'],
-      outcomesOrImpact: [
-        'Engineered resilient tool execution pipeline with schema-validated parameter parsing.',
-        'Handled parallel execution of multiple sub-agent tasks with zero race conditions.',
+      title: 'Atlas — Personal AI Operating System & Digital Discipline Platform',
+      description: 'Cross-platform productivity and personal discipline platform combining life tracking, contextual AI assistance, native Android controls, and computer-vision-based physical verification.',
+      role: 'Lead Developer & Architect',
+      technologies: [
+        'Next.js 16',
+        'React 19',
+        'TypeScript',
+        'Tailwind CSS',
+        'Zustand',
+        'Supabase',
+        'Firebase Firestore',
+        'OpenRouter',
+        'Gemini',
+        'WebRTC',
+        'HTML5 Canvas',
+        'Capacitor',
+        'Java',
       ],
-      githubUrl: 'https://github.com/farhan/agent-orchestrator',
+      outcomesOrImpact: [
+        'Developed a native Android Capacitor plugin integrating UsageStatsManager and system overlay capabilities to enforce application-level screen-time restrictions.',
+        'Built a WebRTC-based computer-vision system using camera frames and Canvas luminance analysis to detect and verify push-up repetitions.',
+        'Created a context-ingestion engine combining tasks, habits, study sessions, gym records, journals, and personal metrics into structured AI context.',
+        'Designed modular state architecture using 15 Zustand domain stores with multi-provider persistence (LocalStorage + Supabase PostgreSQL + Firebase Cloud Firestore).',
+        'Built unified dashboard covering tasks, habits, study tracking, GPA, gym training, football performance, notes, and journaling.',
+      ],
+      githubUrl: 'https://github.com/farhanfreak9137-ai',
+      liveUrl: 'https://portfolio-two-chi-dgvbedq05m.vercel.app/',
+      featured: true,
+    },
+    {
+      id: 'proj-3',
+      title: 'HSC AI Study Intelligence System',
+      description: 'Evidence-based study prioritization, Socratic AI tutoring, question-pattern analysis, and exam simulation platform designed for Bangladesh HSC Science students.',
+      role: 'Creator & Lead Developer',
+      technologies: [
+        'React 19',
+        'TypeScript',
+        'Vite',
+        'Tailwind CSS 4',
+        'KaTeX',
+        'Zustand',
+        'Google Gemini SDK',
+        'OpenRouter',
+        'Playwright',
+        'Capacitor',
+      ],
+      outcomesOrImpact: [
+        'Designed a dynamic topic-priority algorithm combining historical board-question recurrence with individual student weakness data to identify high-priority study areas.',
+        'Built a multi-model AI provider layer using Gemini and OpenRouter fallbacks with structured JSON output validation.',
+        'Developed a Bengali/LaTeX preprocessing pipeline capable of normalizing mixed Bengali text and mathematical notation for responsive KaTeX rendering.',
+        'Created a question-synthesis engine generating NCTB-style creative questions/MCQs and an all-board historical examination question bank.',
+        'Implemented timed board-exam simulator, printable PDF model paper generation, and a diagnostic "Mistake Vault" distinguishing conceptual gaps from calculation mistakes.',
+      ],
+      githubUrl: 'https://github.com/farhanfreak9137-ai',
       liveUrl: '',
       featured: true,
+    },
+    {
+      id: 'proj-4',
+      title: 'Gym Tracker',
+      description: 'Offline-first workout logging and analytics application for structured training, progressive overload tracking, and workout performance analysis.',
+      role: 'Sole Developer',
+      technologies: [
+        'React',
+        'TypeScript',
+        'Tailwind CSS',
+        'LocalStorage',
+        'SVG',
+        'Client-side Architecture',
+      ],
+      outcomesOrImpact: [
+        'Built a customizable workout split and routine-management system supporting multiple training structures.',
+        'Developed a touch-optimized active workout logger for rapid set, repetition, and weight entry.',
+        'Implemented background-resilient rest timer using absolute timestamps to prevent timing drift when browser tabs are suspended.',
+        'Built lightweight SVG-based analytics for training volume, muscle-group distribution, and personal-record progression.',
+      ],
+      githubUrl: 'https://github.com/farhanfreak9137-ai',
+      liveUrl: '',
+      featured: false,
+    },
+    {
+      id: 'proj-5',
+      title: 'Personal AI Chatbot',
+      description: 'Personalized AI conversational application developed as an early exploration of LLM-powered applications, configurable AI personality, and persistent conversational memory.',
+      role: 'Developer',
+      technologies: ['JavaScript', 'HTML5/CSS3', 'AI APIs', 'Conversational State'],
+      outcomesOrImpact: [
+        'Built as the first major AI application in April 2026 after beginning programming in March 2026.',
+        'Explored persistent conversational context and personalized AI behavior.',
+        'Used as a foundation for progressing into larger agent architectures, local RAG systems, and multi-provider orchestration.',
+      ],
+      githubUrl: 'https://github.com/farhanfreak9137-ai',
+      liveUrl: '',
+      featured: false,
     },
   ],
   documents: [
     {
-      id: 'doc-1',
-      title: 'Farhan Professional CV (Summary Edition)',
+      id: 'doc-cv-farhan',
+      title: 'Md Farhan Hossain — Official Resume & Career Document',
       type: 'cv',
-      content: `# Farhan — Senior Software Engineer & AI Systems Developer
-- Email: farhan@example.com | Location: Dhaka, Bangladesh | Remote
-- Summary: 5+ years of engineering experience spanning TypeScript, Next.js, Node.js, and Agentic AI systems.
-- Core philosophy: Build clean, deterministic, well-typed architectures that solve tangible problems.`,
+      content: `# Md Farhan Hossain
+Location: Dhaka, Bangladesh | Phone: +880 1346-859137 | Email: farhan.sajid1896@gmail.com
+GitHub: https://github.com/farhanfreak9137-ai | Portfolio: https://portfolio-two-chi-dgvbedq05m.vercel.app/
+
+## Summary
+Self-taught Software Developer and AI Builder focused on AI engineering, software development, and cloud technologies. Began programming in March 2026 and progressed from foundational HTML/CSS into modern web development, AI/LLM application development, automation, computer vision, local RAG systems, and multi-provider AI orchestration through intensive independent learning and project-based development. Builds and personally uses full applications rather than limiting development to tutorials or isolated experiments. Experienced in designing AI-powered systems, local-first applications, structured data architectures, browser automation, native Android integrations, and safety-conscious agent workflows. Known for being self-directed, adaptable, fast-learning, and persistent when working with unfamiliar technologies. Dedicates approximately 6 hours per day to programming, development, and technical learning.
+
+## Education
+- Pallabi Government College: Higher Secondary Certificate (HSC), Science stream (2nd Year — Expected 2027)
+- Milestone College: Higher Secondary Certificate (HSC), Science (1st Year)
+- MDC Model School & College: Secondary School Certificate (SSC), Science (2025 | GPA: 4.11 / 5.0)
+
+## Work Experience
+- Checkout Assistant / POS Cashier — Full-Time (July 30, 2025 – December 20, 2025)
+  Company: Shwapno, Dhaka, Bangladesh
+  • Operated POS checkout systems and processed customer transactions in a retail environment.
+  • Managed checkout responsibilities while maintaining accuracy and customer-facing professionalism.
+  • Worked within a fast-paced retail environment requiring attention to detail and reliable day-to-day execution.
+  • Developed practical experience in workplace responsibility, customer interaction, time management, and operational requirements.
+  • Left the position to focus more heavily on academic performance and software engineering.
+
+## Major Projects
+1. Auren — Personal Career Operating System & Autonomous Desktop Copilot
+   Stack: Next.js 16, React 19, TypeScript, Google Gemini SDK, OpenAI SDK, Groq, Ollama, Python, Playwright, SQLite, Drizzle ORM, Zod, PowerShell, Win32 API.
+   Features: 58-tool orchestrator, 3-key Gemini rotation pool, Groq LPU failover, offline Windows fast-path (<20ms), intent tool pruning (-65% tokens), human approval safeguards, RAG, Playwright browser control.
+
+2. Atlas — Personal AI Operating System & Digital Discipline Platform
+   Stack: Next.js 16, React 19, TypeScript, Tailwind CSS, Zustand, Supabase, Firebase Cloud Firestore, OpenRouter, Gemini, Llama, WebRTC, HTML5 Canvas, Capacitor, Java.
+   Features: Native Android plugin with UsageStatsManager for app screen-time restrictions, WebRTC computer-vision push-up repetition counter, 15 Zustand domain stores, multi-provider persistence, unified life tracking.
+
+3. HSC AI Study Intelligence System
+   Stack: React 19, TypeScript, Vite, Tailwind CSS 4, KaTeX, Zustand, Google Gemini SDK, OpenRouter, Playwright, Capacitor.
+   Features: NCTB question synthesis, dynamic topic prioritization, historical board-question bank, timed board-exam simulator, diagnostic Mistake Vault, LaTeX/Bengali math rendering.
+
+4. Gym Tracker
+   Stack: React, TypeScript, Tailwind CSS, LocalStorage, client-side data architecture, SVG.
+   Features: Workout split manager, rapid logging, background-resilient rest timer, SVG volume analytics, PR comparisons.
+
+5. Personal AI Chatbot
+   First major AI project built in April 2026 exploring persistent memory and conversational LLM integration.
+
+## Languages
+- Bengali: Native
+- English: Fluent
+- Hindi: Fluent`,
       addedAt: new Date().toISOString(),
     },
   ],

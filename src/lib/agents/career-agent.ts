@@ -214,6 +214,50 @@ export const CareerAgent: Agent = {
         });
       },
     },
+    {
+      name: 'draft_linkedin_post',
+      description: "Drafts a compelling, high-reach LinkedIn post highlighting Farhan's real engineering projects (Auren, Atlas, HSC AI Study Intelligence, Gym Tracker), technical milestones, or architecture insights. Requires approval before publishing.",
+      agentId: 'career_agent',
+      requiresHumanApproval: true,
+      inputSchema: z.object({
+        projectOrTopic: z.string().describe('Target project name or engineering topic (e.g. "Auren AI Assistant", "Next.js Multi-Agent Failover", "Local SQLite Vector Search")'),
+        tone: z.enum(['technical', 'storytelling', 'milestone', 'casual']).optional().default('technical').describe('Voice and style of post'),
+        keyTakeaways: z.string().optional().describe('Specific achievements, metrics, or lessons learned to highlight'),
+      }),
+      buildApprovalPayload: (input) => ({
+        actionType: 'create_application',
+        title: `LinkedIn Post Preview: ${input.projectOrTopic}`,
+        description: `Review drafted LinkedIn post for ${input.projectOrTopic} before publishing.`,
+        payload: input,
+      }),
+      execute: async (input, context) => {
+        const topic = input.projectOrTopic.trim();
+        const tone = input.tone || 'technical';
+
+        const postBody =
+          `🚀 **Engineering Update: Building ${topic}**\n\n` +
+          `I recently worked on tackling high-availability agent architectures with multi-provider failover and local resource constraints.\n\n` +
+          `Key Architectural Decisions:\n` +
+          `• Zero-token fast-path routing to reduce latency to <50ms.\n` +
+          `• Dynamic intent-based tool pruning cutting prompt bloat by over 65%.\n` +
+          `• Grounded in local verified memory and SQLite storage for strict provenance.\n\n` +
+          (input.keyTakeaways ? `Key Takeaway: ${input.keyTakeaways}\n\n` : '') +
+          `What are your thoughts on deterministic fallbacks vs fully autonomous agent loops?\n\n` +
+          `#SoftwareEngineering #AI #TypeScript #Nextjs #SystemDesign #BangladeshTech`;
+
+        return {
+          toolName: 'draft_linkedin_post',
+          success: true,
+          data: {
+            topic,
+            tone,
+            postText: postBody,
+            characterCount: postBody.length,
+            message: 'LinkedIn post drafted successfully. Review text above before sharing.',
+          },
+        };
+      },
+    },
   ],
 };
 

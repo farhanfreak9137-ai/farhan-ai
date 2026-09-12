@@ -321,6 +321,346 @@ export const ComputerControlAgent: Agent = {
         };
       },
     },
+    {
+      name: 'search_remote_gigs',
+      description: 'Search live freelance and remote job platforms (Fiverr, Upwork, RemoteOK, Freelancer) using an automated stealth browser. Navigates to search results and returns structured gig titles, client budgets, ratings, tags, and links.',
+      agentId: 'computer_control_agent',
+      inputSchema: z.object({
+        platform: z.enum(['remoteok', 'fiverr', 'upwork', 'freelancer', 'all']).default('remoteok').describe('Freelance or remote job platform to search'),
+        query: z.string().describe('Search keyword or target role, e.g. "Next.js", "AI Agent", "TypeScript Developer", "Web Scraping"'),
+        sessionId: z.string().optional().describe('Optional existing browser session ID to reuse'),
+      }),
+      execute: async (input) => {
+        let sid = input.sessionId;
+        const { playwrightComputerProvider } = await import('@/lib/computer/playwrightProvider');
+
+        if (!sid) {
+          sid = playwrightComputerProvider.getActiveSessionId() || await playwrightComputerProvider.createSession();
+        }
+
+        const queryClean = input.query.trim();
+        const platform = input.platform || 'remoteok';
+
+        let targetUrl = '';
+        if (platform === 'remoteok') {
+          targetUrl = `https://remoteok.com/remote-${encodeURIComponent(queryClean.toLowerCase().replace(/\s+/g, '-'))}-jobs`;
+        } else if (platform === 'fiverr') {
+          targetUrl = `https://www.fiverr.com/search/gigs?query=${encodeURIComponent(queryClean)}`;
+        } else if (platform === 'upwork') {
+          targetUrl = `https://www.upwork.com/nx/search/jobs/?q=${encodeURIComponent(queryClean)}`;
+        } else if (platform === 'freelancer') {
+          targetUrl = `https://www.freelancer.com/jobs/${encodeURIComponent(queryClean.toLowerCase().replace(/\s+/g, '-'))}`;
+        } else {
+          targetUrl = `https://remoteok.com/remote-${encodeURIComponent(queryClean.toLowerCase().replace(/\s+/g, '-'))}-jobs`;
+        }
+
+        try {
+          await playwrightComputerProvider.navigate(sid, targetUrl);
+          await playwrightComputerProvider.wait(sid, 2500);
+          const gigs = await playwrightComputerProvider.extractGigs(sid, platform);
+          const obs = await playwrightComputerProvider.observe(sid);
+
+          return {
+            toolName: 'search_remote_gigs',
+            success: true,
+            data: {
+              platform,
+              query: queryClean,
+              targetUrl,
+              pageTitle: obs.title,
+              gigsFound: gigs.length,
+              gigs,
+              sessionId: sid,
+              summary: `Found ${gigs.length} live opportunities on ${platform.toUpperCase()} for "${queryClean}".`,
+            },
+          };
+        } catch (err: unknown) {
+          const msg = err instanceof Error ? err.message : String(err);
+          return {
+            toolName: 'search_remote_gigs',
+            success: false,
+            error: `Failed searching remote gigs on ${platform}: ${msg}`,
+          };
+        }
+      },
+    },
+    {
+      name: 'save_browser_session',
+      description: 'Saves current browser cookies, authentication tokens, and session state from the active browser session to the persistent profile (data/browser_profile/state.json). Use this after logging into Fiverr, Upwork, or Freelancer so the agent stays logged in permanently.',
+      agentId: 'computer_control_agent',
+      inputSchema: z.object({
+        sessionId: z.string().optional().describe('Browser session ID (optional; uses active session if omitted)'),
+      }),
+      execute: async (input) => {
+        try {
+          const { playwrightComputerProvider } = await import('@/lib/computer/playwrightProvider');
+          const sid = input.sessionId || playwrightComputerProvider.getActiveSessionId() || undefined;
+          const path = await playwrightComputerProvider.saveSessionState(sid);
+          return {
+            toolName: 'save_browser_session',
+            success: true,
+            data: {
+              savedPath: path,
+              message: 'Browser session cookies and storage successfully saved to persistent profile (data/browser_profile/state.json).',
+            },
+          };
+        } catch (err: unknown) {
+          const msg = err instanceof Error ? err.message : String(err);
+          return {
+            toolName: 'save_browser_session',
+            success: false,
+            error: `Failed saving browser session: ${msg}`,
+          };
+        }
+      },
+    },
+    {
+      name: 'open_freelance_platform',
+      description: 'Open a freelance or remote job site (Fiverr, Upwork, Freelancer, RemoteOK, LinkedIn) in the browser with saved persistent login session intact so you can view your dashboard, gigs, or active orders.',
+      agentId: 'computer_control_agent',
+      inputSchema: z.object({
+        platform: z.enum(['fiverr', 'upwork', 'freelancer', 'remoteok', 'linkedin', 'weworkremotely']).describe('Platform to open'),
+        path: z.string().optional().describe('Optional page path e.g. "/manage_orders" or "/nx/find-work"'),
+        sessionId: z.string().optional().describe('Optional existing session ID'),
+      }),
+      execute: async (input) => {
+        let sid = input.sessionId;
+        const { playwrightComputerProvider } = await import('@/lib/computer/playwrightProvider');
+
+        if (!sid) {
+          sid = playwrightComputerProvider.getActiveSessionId() || await playwrightComputerProvider.createSession();
+        }
+
+        const domainMap: Record<string, string> = {
+          fiverr: 'https://www.fiverr.com',
+          upwork: 'https://www.upwork.com',
+          freelancer: 'https://www.freelancer.com',
+          remoteok: 'https://remoteok.com',
+          linkedin: 'https://www.linkedin.com',
+          weworkremotely: 'https://weworkremotely.com',
+        };
+
+        const baseUrl = domainMap[input.platform] || 'https://www.fiverr.com';
+        const targetUrl = input.path ? `${baseUrl}${input.path.startsWith('/') ? '' : '/'}${input.path}` : baseUrl;
+
+        try {
+          await playwrightComputerProvider.navigate(sid, targetUrl);
+          await playwrightComputerProvider.wait(sid, 2000);
+          const obs = await playwrightComputerProvider.observe(sid);
+
+          return {
+            toolName: 'open_freelance_platform',
+            success: true,
+            data: {
+              platform: input.platform,
+              url: targetUrl,
+              pageTitle: obs.title,
+              sessionId: sid,
+              message: `Opened ${input.platform.toUpperCase()} in browser session. Persistent profile loaded.`,
+            },
+          };
+        } catch (err: unknown) {
+          const msg = err instanceof Error ? err.message : String(err);
+          return {
+            toolName: 'open_freelance_platform',
+            success: false,
+            error: `Failed opening ${input.platform}: ${msg}`,
+          };
+        }
+      },
+    },
+    {
+      name: 'search_instagram_trends',
+      description: 'Research trending topics, viral formats, popular reel concepts, and hashtags on Instagram using an authenticated stealth browser session.',
+      agentId: 'computer_control_agent',
+      inputSchema: z.object({
+        topic: z.string().describe('Hashtag, niche, or topic to research (e.g. "ai", "webdev", "fitness", "dhaka", "tech")'),
+        sessionId: z.string().optional().describe('Optional existing browser session ID'),
+      }),
+      execute: async (input) => {
+        let sid = input.sessionId;
+        const { playwrightComputerProvider } = await import('@/lib/computer/playwrightProvider');
+
+        if (!sid) {
+          sid = playwrightComputerProvider.getActiveSessionId() || await playwrightComputerProvider.createSession();
+        }
+
+        const cleanTopic = input.topic.trim().replace(/^#/, '').toLowerCase();
+        const targetUrl = `https://www.instagram.com/explore/tags/${encodeURIComponent(cleanTopic)}/`;
+
+        try {
+          await playwrightComputerProvider.navigate(sid, targetUrl);
+          await playwrightComputerProvider.wait(sid, 3000);
+          const page = playwrightComputerProvider.getPage(sid);
+
+          // Extract post thumbnails, alt descriptions, and links
+          const posts = await page.evaluate(() => {
+            const items: Array<{ url: string; description: string }> = [];
+            const links = document.querySelectorAll('a[href*="/p/"], a[href*="/reel/"]');
+            links.forEach((a, idx) => {
+              if (idx >= 12) return;
+              const img = a.querySelector('img');
+              const alt = img?.getAttribute('alt') || '';
+              const href = (a as HTMLAnchorElement).href;
+              items.push({ url: href, description: alt.slice(0, 200) });
+            });
+            return items;
+          });
+
+          return {
+            toolName: 'search_instagram_trends',
+            success: true,
+            data: {
+              topic: cleanTopic,
+              targetUrl,
+              postsFound: posts.length,
+              posts,
+              summary: `Extracted ${posts.length} trending posts and reels on Instagram for #${cleanTopic}.`,
+            },
+          };
+        } catch (err: unknown) {
+          const msg = err instanceof Error ? err.message : String(err);
+          return {
+            toolName: 'search_instagram_trends',
+            success: false,
+            error: `Failed exploring Instagram trends for #${cleanTopic}: ${msg}`,
+          };
+        }
+      },
+    },
+    {
+      name: 'draft_chat_message',
+      description: 'Drafts a direct message to send to someone via WhatsApp Web or Telegram. Requires human confirmation before delivery.',
+      agentId: 'computer_control_agent',
+      requiresHumanApproval: true,
+      inputSchema: z.object({
+        platform: z.enum(['whatsapp', 'telegram']).describe('Messaging platform to use'),
+        contact: z.string().describe('Contact name or phone number with country code (e.g. "+88017XXXXXXXX")'),
+        message: z.string().describe('Message content to send'),
+        sessionId: z.string().optional().describe('Optional existing browser session ID'),
+      }),
+      buildApprovalPayload: (input) => ({
+        actionType: 'create_application',
+        title: `Dispatch Chat Message: ${input.platform.toUpperCase()}`,
+        description: `Confirm sending the following message to ${input.contact} via ${input.platform}: "${input.message}"`,
+        payload: input,
+      }),
+      execute: async (input, context) => {
+        if (!context?.isHumanApproved) {
+          return {
+            toolName: 'draft_chat_message',
+            success: true,
+            requiresHumanApproval: true,
+            data: {
+              pending: true,
+              platform: input.platform,
+              contact: input.contact,
+              message: input.message,
+              prompt: `Please approve sending message to ${input.contact}: "${input.message}"`,
+            },
+          };
+        }
+
+        let sid = input.sessionId;
+        const { playwrightComputerProvider } = await import('@/lib/computer/playwrightProvider');
+        if (!sid) {
+          sid = playwrightComputerProvider.getActiveSessionId() || await playwrightComputerProvider.createSession();
+        }
+
+        try {
+          if (input.platform === 'whatsapp') {
+            const cleanPhone = input.contact.replace(/[^\d+]/g, '');
+            const targetUrl = cleanPhone
+              ? `https://web.whatsapp.com/send?phone=${encodeURIComponent(cleanPhone)}&text=${encodeURIComponent(input.message)}`
+              : 'https://web.whatsapp.com';
+            await playwrightComputerProvider.navigate(sid, targetUrl);
+          } else {
+            await playwrightComputerProvider.navigate(sid, 'https://web.telegram.org');
+          }
+
+          return {
+            toolName: 'draft_chat_message',
+            success: true,
+            data: {
+              platform: input.platform,
+              contact: input.contact,
+              status: 'DRAFT_LOADED',
+              message: `Opened ${input.platform} conversation with ${input.contact} and prepared message.`,
+            },
+          };
+        } catch (err: unknown) {
+          const msg = err instanceof Error ? err.message : String(err);
+          return {
+            toolName: 'draft_chat_message',
+            success: false,
+            error: `Failed opening ${input.platform}: ${msg}`,
+          };
+        }
+      },
+    },
+    {
+      name: 'draft_email',
+      description: 'Drafts an email message with recipient, subject, and body via Gmail or default mail. Requires human approval before dispatch.',
+      agentId: 'computer_control_agent',
+      requiresHumanApproval: true,
+      inputSchema: z.object({
+        recipient: z.string().describe('Recipient email address or contact name'),
+        subject: z.string().describe('Email subject line'),
+        body: z.string().describe('Email body text'),
+        sessionId: z.string().optional().describe('Optional existing browser session ID'),
+      }),
+      buildApprovalPayload: (input) => ({
+        actionType: 'create_application',
+        title: `Dispatch Email: ${input.subject}`,
+        description: `Confirm sending email to ${input.recipient} with subject "${input.subject}".`,
+        payload: input,
+      }),
+      execute: async (input, context) => {
+        if (!context?.isHumanApproved) {
+          return {
+            toolName: 'draft_email',
+            success: true,
+            requiresHumanApproval: true,
+            data: {
+              pending: true,
+              recipient: input.recipient,
+              subject: input.subject,
+              body: input.body,
+              prompt: `Please approve sending email to ${input.recipient} with subject "${input.subject}".`,
+            },
+          };
+        }
+
+        let sid = input.sessionId;
+        const { playwrightComputerProvider } = await import('@/lib/computer/playwrightProvider');
+        if (!sid) {
+          sid = playwrightComputerProvider.getActiveSessionId() || await playwrightComputerProvider.createSession();
+        }
+
+        try {
+          const gmailUrl = `https://mail.google.com/mail/?view=cm&fs=1&to=${encodeURIComponent(input.recipient)}&su=${encodeURIComponent(input.subject)}&body=${encodeURIComponent(input.body)}`;
+          await playwrightComputerProvider.navigate(sid, gmailUrl);
+
+          return {
+            toolName: 'draft_email',
+            success: true,
+            data: {
+              recipient: input.recipient,
+              subject: input.subject,
+              status: 'DRAFT_LOADED_IN_GMAIL',
+              message: `Gmail compose window opened for ${input.recipient} with subject "${input.subject}".`,
+            },
+          };
+        } catch (err: unknown) {
+          const msg = err instanceof Error ? err.message : String(err);
+          return {
+            toolName: 'draft_email',
+            success: false,
+            error: `Failed preparing email: ${msg}`,
+          };
+        }
+      },
+    },
   ],
 };
 

@@ -360,10 +360,10 @@ test('Computer Control: 13. Real Playwright live navigation to example.com with 
   }
 });
 
-test('Computer Control: 14. ComputerControlAgent native tools (13 tools) registered and exposed to LLM', async () => {
+test('Computer Control: 14. ComputerControlAgent native tools (19 tools) registered and exposed to LLM', async () => {
   const agent = defaultRegistry.getAgent('computer_control_agent');
   assert.ok(agent, 'ComputerControlAgent must be registered in defaultRegistry');
-  assert.equal(agent.tools.length, 13, 'Must have exactly 13 native tools');
+  assert.equal(agent.tools.length, 19, 'Must have exactly 19 native tools');
 
   const expectedToolNames = [
     'create_browser_session',
@@ -379,6 +379,12 @@ test('Computer Control: 14. ComputerControlAgent native tools (13 tools) registe
     'take_screenshot',
     'close_browser',
     'stop_session',
+    'search_remote_gigs',
+    'save_browser_session',
+    'open_freelance_platform',
+    'search_instagram_trends',
+    'draft_chat_message',
+    'draft_email',
   ];
 
   for (const name of expectedToolNames) {

@@ -11,63 +11,136 @@ import {
 export class GeminiProvider implements LLMProvider {
   readonly id: ProviderId = 'gemini';
   readonly name = 'Google Gemini (1M+ Token Context)';
-  private ai: GoogleGenAI;
+  private keys: string[] = [];
+  private currentKeyIndex = 0;
   private defaultModel: string;
 
   constructor(apiKey?: string, defaultModel?: string) {
-    const key = apiKey || process.env.GEMINI_API_KEY || '';
-    if (!key) {
-      throw new Error('GEMINI_API_KEY is not configured in .env.local');
+    this.keys = this.parseKeys(apiKey);
+    if (this.keys.length === 0) {
+      throw new Error('GEMINI_API_KEY or GEMINI_API_KEYS is not configured in .env.local');
     }
-    this.ai = new GoogleGenAI({ apiKey: key });
-    this.defaultModel = defaultModel || process.env.GEMINI_MODEL || 'gemini-3.6-flash';
+    this.defaultModel = defaultModel || process.env.GEMINI_MODEL || 'gemini-2.5-flash';
+  }
+
+  private parseKeys(apiKey?: string): string[] {
+    const raw = apiKey || process.env.GEMINI_API_KEYS || process.env.GEMINI_API_KEY || '';
+    return Array.from(
+      new Set(
+        raw
+          .split(/[\n,;]+/)
+          .map((k) => k.trim())
+          .filter((k) => k.length > 0)
+      )
+    );
+  }
+
+  private getActiveClient(): { ai: GoogleGenAI; keyIndex: number; keyPreview: string } {
+    const keyIndex = this.currentKeyIndex % this.keys.length;
+    const key = this.keys[keyIndex];
+    const keyPreview = `${key.slice(0, 8)}...${key.slice(-4)}`;
+    return {
+      ai: new GoogleGenAI({ apiKey: key }),
+      keyIndex,
+      keyPreview,
+    };
+  }
+
+  private isRateLimitOrQuotaError(err: unknown): boolean {
+    if (!err) return false;
+    const msg = err instanceof Error ? err.message : String(err);
+    const lower = msg.toLowerCase();
+    return (
+      lower.includes('429') ||
+      lower.includes('resource_exhausted') ||
+      lower.includes('quota') ||
+      lower.includes('rate limit') ||
+      lower.includes('too many requests') ||
+      lower.includes('overloaded')
+    );
+  }
+
+  private async executeWithRotation<T>(
+    operationName: string,
+    operation: (ai: GoogleGenAI) => Promise<T>
+  ): Promise<T> {
+    const totalKeys = this.keys.length;
+    let lastError: unknown;
+
+    for (let attempt = 0; attempt < totalKeys; attempt++) {
+      const { ai, keyIndex, keyPreview } = this.getActiveClient();
+      try {
+        return await operation(ai);
+      } catch (err: unknown) {
+        lastError = err;
+        const isQuota = this.isRateLimitOrQuotaError(err);
+        const errMsg = err instanceof Error ? err.message : String(err);
+
+        if (isQuota && totalKeys > 1 && attempt < totalKeys - 1) {
+          console.warn(
+            `[GeminiProvider] Key ${keyIndex + 1}/${totalKeys} (${keyPreview}) rate-limited or quota reached during ${operationName}. Rotating to next key...`
+          );
+          this.currentKeyIndex = (this.currentKeyIndex + 1) % totalKeys;
+          continue;
+        }
+
+        // If not a quota error or no more keys left to try
+        throw err;
+      }
+    }
+
+    throw lastError;
   }
 
   async chat(messages: ChatMessage[], options?: ChatOptions): Promise<string> {
     const model = options?.model || this.defaultModel;
     const { systemInstruction, contents } = this.formatMessages(messages);
 
-    const response = await this.ai.models.generateContent({
-      model,
-      contents,
-      config: {
-        systemInstruction: systemInstruction || undefined,
-        temperature: options?.temperature ?? 0.2,
-        maxOutputTokens: options?.maxTokens,
-      },
-    });
+    return this.executeWithRotation('chat', async (ai) => {
+      const response = await ai.models.generateContent({
+        model,
+        contents,
+        config: {
+          systemInstruction: systemInstruction || undefined,
+          temperature: options?.temperature ?? 0.2,
+          maxOutputTokens: options?.maxTokens,
+        },
+      });
 
-    return response.text || '';
+      return response.text || '';
+    });
   }
 
   async streamChat(messages: ChatMessage[], options?: ChatOptions): Promise<ReadableStream<string>> {
     const model = options?.model || this.defaultModel;
     const { systemInstruction, contents } = this.formatMessages(messages);
 
-    const responseStream = await this.ai.models.generateContentStream({
-      model,
-      contents,
-      config: {
-        systemInstruction: systemInstruction || undefined,
-        temperature: options?.temperature ?? 0.2,
-        maxOutputTokens: options?.maxTokens,
-      },
-    });
+    return this.executeWithRotation('streamChat', async (ai) => {
+      const responseStream = await ai.models.generateContentStream({
+        model,
+        contents,
+        config: {
+          systemInstruction: systemInstruction || undefined,
+          temperature: options?.temperature ?? 0.2,
+          maxOutputTokens: options?.maxTokens,
+        },
+      });
 
-    return new ReadableStream<string>({
-      async start(controller) {
-        try {
-          for await (const chunk of responseStream) {
-            const text = chunk.text;
-            if (text) {
-              controller.enqueue(text);
+      return new ReadableStream<string>({
+        async start(controller) {
+          try {
+            for await (const chunk of responseStream) {
+              const text = chunk.text;
+              if (text) {
+                controller.enqueue(text);
+              }
             }
+            controller.close();
+          } catch (err) {
+            controller.error(err);
           }
-          controller.close();
-        } catch (err) {
-          controller.error(err);
-        }
-      },
+        },
+      });
     });
   }
 
@@ -98,33 +171,35 @@ export class GeminiProvider implements LLMProvider {
       };
     });
 
-    const response = await this.ai.models.generateContent({
-      model,
-      contents,
-      config: {
-        systemInstruction: systemInstruction || undefined,
-        temperature: options?.temperature ?? 0.2,
-        maxOutputTokens: options?.maxTokens,
-        tools: [{ functionDeclarations }],
-      },
-    });
+    return this.executeWithRotation('chatWithTools', async (ai) => {
+      const response = await ai.models.generateContent({
+        model,
+        contents,
+        config: {
+          systemInstruction: systemInstruction || undefined,
+          temperature: options?.temperature ?? 0.2,
+          maxOutputTokens: options?.maxTokens,
+          tools: [{ functionDeclarations }],
+        },
+      });
 
-    if (response.functionCalls && response.functionCalls.length > 0) {
-      const rawParts = response.candidates?.[0]?.content?.parts || [];
+      if (response.functionCalls && response.functionCalls.length > 0) {
+        const rawParts = response.candidates?.[0]?.content?.parts || [];
+        return {
+          content: response.text || null,
+          toolCalls: response.functionCalls.map((fc, idx) => ({
+            id: `call-gemini-${Date.now()}-${idx}`,
+            name: fc.name || '',
+            arguments: (fc.args || {}) as Record<string, unknown>,
+          })),
+          rawModelParts: rawParts,
+        };
+      }
+
       return {
-        content: response.text || null,
-        toolCalls: response.functionCalls.map((fc, idx) => ({
-          id: `call-gemini-${Date.now()}-${idx}`,
-          name: fc.name || '',
-          arguments: (fc.args || {}) as Record<string, unknown>,
-        })),
-        rawModelParts: rawParts,
+        content: response.text || '',
       };
-    }
-
-    return {
-      content: response.text || '',
-    };
+    });
   }
 
   private formatMessages(messages: ChatMessage[]) {

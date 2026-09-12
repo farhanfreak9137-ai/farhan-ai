@@ -90,6 +90,15 @@ export async function executeComputerAction(
         await playwrightComputerProvider.close(sessionId);
         return { success: true, data: { closed: true } };
       }
+      case 'saveSession': {
+        const path = await playwrightComputerProvider.saveSessionState(sessionId);
+        return { success: true, data: { savedPath: path } };
+      }
+      case 'extractGigs': {
+        if (!sessionId) throw new Error('sessionId required for extractGigs');
+        const gigs = await playwrightComputerProvider.extractGigs(sessionId, payload?.platform);
+        return { success: true, data: { gigs, count: gigs.length } };
+      }
       default:
         return { success: false, data: `Unsupported action '${action}'` };
     }

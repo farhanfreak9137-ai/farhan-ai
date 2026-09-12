@@ -165,5 +165,64 @@ export const KnowledgeAgent: Agent = {
         }
       },
     },
+    {
+      name: 'summarize_local_document',
+      description: "Reads and extracts text from any local PDF, DOCX, Markdown, or text file on Farhan's PC and provides structured study notes, key formulas, takeaways, and chapter summaries.",
+      agentId: 'knowledge_agent',
+      inputSchema: z.object({
+        filePath: z.string().describe('Path to local document (e.g. "%DOWNLOADS%/notes.pdf" or "C:/Users/.../assignment.pdf")'),
+        focusArea: z.string().optional().describe('Specific focus area (e.g. "key formulas", "exam review", "architecture highlights")'),
+      }),
+      execute: async (input) => {
+        try {
+          const fs = await import('fs/promises');
+          const path = await import('path');
+          const os = await import('os');
+          
+          let expanded = input.filePath
+            .replace(/%USERPROFILE%/gi, os.homedir())
+            .replace(/%DOWNLOADS%/gi, path.join(os.homedir(), 'Downloads'))
+            .replace(/%DOCUMENTS%/gi, path.join(os.homedir(), 'Documents'))
+            .replace(/%DESKTOP%/gi, path.join(os.homedir(), 'Desktop'));
+          expanded = path.normalize(expanded);
+
+          const buffer = await fs.readFile(expanded);
+          const ext = path.extname(expanded).toLowerCase();
+
+          let textContent = '';
+          if (ext === '.pdf') {
+            const { PdfExtractor } = await import('../rag/extractors/pdf');
+            const extractor = new PdfExtractor();
+            const extracted = await extractor.extract(buffer, path.basename(expanded));
+            textContent = extracted.text;
+          } else {
+            textContent = buffer.toString('utf-8');
+          }
+
+          const wordCount = textContent.split(/\s+/).filter(Boolean).length;
+          const snippet = textContent.slice(0, 3000);
+
+          return {
+            toolName: 'summarize_local_document',
+            success: true,
+            data: {
+              filePath: expanded,
+              fileType: ext,
+              totalWords: wordCount,
+              sampleText: snippet,
+              focusArea: input.focusArea || 'General overview',
+              summaryInstructions: 'Document text extracted successfully. Synthesize comprehensive bulleted takeaways, definitions, and formulas.',
+            },
+          };
+        } catch (err: unknown) {
+          const msg = err instanceof Error ? err.message : String(err);
+          return {
+            toolName: 'summarize_local_document',
+            success: false,
+            error: `Failed summarizing document: ${msg}`,
+          };
+        }
+      },
+    },
   ],
 };

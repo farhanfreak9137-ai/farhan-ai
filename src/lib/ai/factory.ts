@@ -73,9 +73,8 @@ export async function getAvailableProvidersAsync(): Promise<ProviderInfo[]> {
           ollamaProvider.defaultModel = process.env.OLLAMA_MODEL || models[0].name;
           ollamaProvider.name = `Local Ollama (${models.length} model${models.length === 1 ? '' : 's'})`;
         }
-        // Place local offline Ollama at the top so it is selected as the default primary provider
-        const others = baseProviders.filter((p) => p.id !== 'ollama');
-        return [ollamaProvider, ...others];
+        // Keep cloud providers (gemini, groq) primary, but mark ollama as active offline safety net
+        return baseProviders;
       }
     }
   } catch (err) {
@@ -159,17 +158,24 @@ export async function streamChatWithFallback(
 ): Promise<{ stream: ReadableStream<string>; providerUsed: ProviderId }> {
   const providers = getAvailableProviders();
   
-  const defaultPreferred = (process.env.AI_PROVIDER || process.env.PRIMARY_PROVIDER || 'ollama') as ProviderId;
+  const defaultPreferred = (process.env.AI_PROVIDER || process.env.PRIMARY_PROVIDER || 'gemini') as ProviderId;
   const targetPreferred = preferredId || defaultPreferred;
 
-  // Prioritize preferred provider, then other configured providers, then mock
+  // Prioritize preferred provider, then standard high-speed cloud cascade (gemini -> groq -> openai -> ollama -> mock)
+  const candidatePriority: ProviderId[] = ['gemini', 'groq', 'openai', 'ollama'];
   const order: ProviderId[] = [];
-  if (targetPreferred && targetPreferred !== 'mock') order.push(targetPreferred);
-  
-  providers
-    .filter((p) => p.configured && p.id !== 'mock' && !order.includes(p.id))
-    .forEach((p) => order.push(p.id));
-    
+
+  if (targetPreferred && targetPreferred !== 'mock') {
+    order.push(targetPreferred);
+  }
+
+  for (const candidate of candidatePriority) {
+    const p = providers.find((pr) => pr.id === candidate);
+    if (p && p.configured && !order.includes(candidate)) {
+      order.push(candidate);
+    }
+  }
+
   order.push('mock'); // Final safety net
 
   for (const providerId of order) {
