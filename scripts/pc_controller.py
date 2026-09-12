@@ -794,21 +794,55 @@ def list_registered_apps():
 
 def resolve_youtube_autoplay(query):
     """Finds top video ID on YouTube and returns direct autoplay watch URL."""
-    try:
-        q = urllib.parse.quote_plus(query.strip())
-        req = urllib.request.Request(
-            f"https://www.youtube.com/results?search_query={q}",
-            headers={"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"}
-        )
-        with urllib.request.urlopen(req, timeout=4) as resp:
-            html = resp.read().decode("utf-8", errors="ignore")
-        matches = re.findall(r'"videoId":"([a-zA-Z0-9_-]{11})"', html)
-        if matches:
-            # First match is the top search result video!
-            return f"https://www.youtube.com/watch?v={matches[0]}&autoplay=1"
-    except Exception:
-        pass
-    return f"https://www.youtube.com/results?search_query={urllib.parse.quote_plus(query.strip())}"
+    raw = query.strip()
+    # Strip common command prefixes and platform suffixes
+    clean_q = re.sub(r'^(?:play|listen\s+to|watch|stream|put\s+on|search\s+for|search|find)\s+', '', raw, flags=re.I).strip()
+    clean_q = re.sub(r'\s+(?:on|in)\s+youtube.*$', '', clean_q, flags=re.I).strip()
+    clean_q = re.sub(r'\s+youtube.*$', '', clean_q, flags=re.I).strip()
+
+    # If query is empty or generic, use popular music stream
+    if not clean_q or clean_q.lower() in ["music", "song", "songs", "something", "some music", "some songs", "tune"]:
+        clean_q = "top hit songs"
+
+    # Candidates:
+    # 1. clean_q as-is (e.g. "kalyani")
+    # 2. clean_q + " song" (e.g. "softcore song" - bypasses age-gate/filter for unauthenticated queries)
+    # 3. clean_q + " official audio"
+    candidates = [clean_q]
+    low = clean_q.lower()
+    if not any(w in low for w in ["song", "music", "audio", "video", "official", "lyrics", "live", "remix"]):
+        candidates.append(f"{clean_q} song")
+        candidates.append(f"{clean_q} official audio")
+
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
+        "Accept-Language": "en-US,en;q=0.9",
+        "Cookie": "PREF=hl=en&f2=8000000;",
+    }
+
+    for cand in candidates:
+        try:
+            q = urllib.parse.quote_plus(cand)
+            req = urllib.request.Request(
+                f"https://www.youtube.com/results?search_query={q}",
+                headers=headers
+            )
+            with urllib.request.urlopen(req, timeout=6) as resp:
+                html = resp.read().decode("utf-8", errors="ignore")
+
+            # First match from videoId
+            matches = re.findall(r'"videoId":"([a-zA-Z0-9_-]{11})"', html)
+            if matches:
+                return f"https://www.youtube.com/watch?v={matches[0]}&autoplay=1"
+
+            # Fallback watch match
+            watch_matches = re.findall(r'/watch\?v=([a-zA-Z0-9_-]{11})', html)
+            if watch_matches:
+                return f"https://www.youtube.com/watch?v={watch_matches[0]}&autoplay=1"
+        except Exception:
+            continue
+
+    return f"https://www.youtube.com/results?search_query={urllib.parse.quote_plus(clean_q)}"
 
 def web_search(engine, query):
     """Searches Google or auto-plays YouTube in the user's default browser on the interactive desktop."""
@@ -909,22 +943,29 @@ def launch_application(target, args="", browser=None):
     # 1. URLs: Open in specified browser, or detected Edge/Chrome, or default browser
     if resolved.startswith(("http://", "https://")):
         req_browser = (browser or "").lower().strip()
+        extra_flags = "--autoplay-policy=no-user-gesture-required" if "youtube.com/watch" in resolved else ""
+
         if "edge" in req_browser and detected_edge:
-            if launch_process_on_desktop(f'"{detected_edge}" "{resolved}"'):
+            cmd = f'"{detected_edge}" {extra_flags} "{resolved}"'.strip()
+            if launch_process_on_desktop(cmd):
                 return {"success": True, "message": f"Opened '{resolved}' in Microsoft Edge.", "target": resolved}
         elif "chrome" in req_browser and detected_chrome:
-            if launch_process_on_desktop(f'"{detected_chrome}" "{resolved}"'):
+            cmd = f'"{detected_chrome}" {extra_flags} "{resolved}"'.strip()
+            if launch_process_on_desktop(cmd):
                 return {"success": True, "message": f"Opened '{resolved}' in Google Chrome.", "target": resolved}
 
         # If no specific browser requested, prefer Edge if requested or Chrome, then default
         if req_browser == "edge" and detected_edge:
-            if launch_process_on_desktop(f'"{detected_edge}" "{resolved}"'):
+            cmd = f'"{detected_edge}" {extra_flags} "{resolved}"'.strip()
+            if launch_process_on_desktop(cmd):
                 return {"success": True, "message": f"Opened '{resolved}' in Microsoft Edge.", "target": resolved}
         elif detected_chrome:
-            if launch_process_on_desktop(f'"{detected_chrome}" "{resolved}"'):
+            cmd = f'"{detected_chrome}" {extra_flags} "{resolved}"'.strip()
+            if launch_process_on_desktop(cmd):
                 return {"success": True, "message": f"Opened '{resolved}' in Chrome.", "target": resolved}
         elif detected_edge:
-            if launch_process_on_desktop(f'"{detected_edge}" "{resolved}"'):
+            cmd = f'"{detected_edge}" {extra_flags} "{resolved}"'.strip()
+            if launch_process_on_desktop(cmd):
                 return {"success": True, "message": f"Opened '{resolved}' in Microsoft Edge.", "target": resolved}
 
         if launch_process_on_desktop(f'cmd.exe /c start "" "{resolved}"'):

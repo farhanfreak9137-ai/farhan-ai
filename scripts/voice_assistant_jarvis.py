@@ -220,7 +220,7 @@ def handle_hardware_command(command: str) -> bool:
         speak("Volume toggled.")
         return True
 
-    if any(p in low for p in ["pause music", "pause song", "stop music", "resume music", "play music"]) and not any(p in low for p in ["play some", "play ", "search"]):
+    if any(p in low for p in ["pause music", "pause song", "stop music", "resume music", "play pause", "toggle playback"]):
         send_key_event(VK_MEDIA_PLAY_PAUSE)
         speak("Playback toggled.")
         return True

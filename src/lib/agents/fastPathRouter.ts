@@ -637,19 +637,19 @@ export async function tryFastPathRoute(userPrompt: string): Promise<FastPathMatc
   // ---------------------------------------------------------------------------
   // 3. Media Playback Controls
   // ---------------------------------------------------------------------------
+  // ---------------------------------------------------------------------------
+  // 3. Media Playback Controls (Hardware toggle for existing desktop player)
+  // ---------------------------------------------------------------------------
   if (
     normalized === 'play' ||
     normalized === 'pause' ||
     normalized === 'resume' ||
-    normalized.includes('play music') ||
-    normalized.includes('pause music') ||
-    normalized.includes('stop music') ||
-    normalized.includes('resume music') ||
-    normalized.includes('start music') ||
-    normalized.includes('continue music') ||
-    normalized.includes('play pause') ||
-    normalized.includes('toggle media') ||
-    normalized.includes('toggle playback')
+    normalized === 'pause music' ||
+    normalized === 'stop music' ||
+    normalized === 'resume music' ||
+    normalized === 'play pause' ||
+    normalized === 'toggle media' ||
+    normalized === 'toggle playback'
   ) {
     await runPcController(['media', 'play_pause']);
     return {
@@ -722,50 +722,40 @@ export async function tryFastPathRoute(userPrompt: string): Promise<FastPathMatc
   }
 
   // ---------------------------------------------------------------------------
-  // 4. Song, Music & Web Search Queries
+  // 4. Song, Music & Direct Media Autoplay
   // ---------------------------------------------------------------------------
-  // Music & Songs Intent (e.g. "search songs", "search songs on youtube", "play songs", "search hindi songs", "songs")
-  const songSearchMatch = normalized.match(/^(?:search(?:\s+for)?|find|look\s+up|play|listen(?:\s+to)?)\s+(.+?\s+(?:songs?|music|tracks?))(?:\s+on\s+youtube)?$/i);
-  const isGenericSongIntent =
-    /^(?:search(?:\s+for)?|find|look\s+up|play|listen(?:\s+to)?)\s+(?:songs?|music|tracks?)(?:\s+on\s+youtube)?$/i.test(normalized) ||
-    normalized === 'songs' ||
-    normalized === 'song' ||
-    normalized === 'search songs' ||
-    normalized === 'search song' ||
-    normalized === 'search music' ||
-    normalized === 'find songs' ||
-    normalized === 'find music' ||
+
+  // A. Generic Music / Song Play Intent (e.g. "play music", "play some music", "start music", "play songs", "play a song", "play something", "music on youtube", "songs on youtube")
+  const isGenericPlayMusicIntent =
+    /^(?:play|start|put\s+on|stream)\s+(?:some\s+)?(?:music|songs?|tracks?|beats?|lofi|tunes?|something)(?:\s+on\s+youtube)?$/i.test(normalized) ||
+    /^(?:music|songs?)\s+on\s+youtube$/i.test(normalized) ||
+    normalized === 'play music' ||
+    normalized === 'play some music' ||
+    normalized === 'start music' ||
     normalized === 'play songs' ||
     normalized === 'play song' ||
-    normalized === 'play music' ||
-    normalized === 'songs on youtube' ||
-    normalized === 'music on youtube' ||
-    normalized.includes('search songs on youtube') ||
-    normalized.includes('search on youtube for songs') ||
-    normalized.includes('search music on youtube') ||
-    normalized.includes('search songs') ||
-    normalized.includes('search music');
+    normalized === 'play a song' ||
+    normalized === 'play something';
 
-  if (songSearchMatch || isGenericSongIntent) {
-    const songQuery = songSearchMatch ? songSearchMatch[1].trim() : 'top songs';
-    await runPcController(['search', 'youtube', songQuery]);
+  if (isGenericPlayMusicIntent) {
+    await runPcController(['search', 'youtube', 'top hit songs']);
     return {
       matched: true,
       actionName: 'web_search_youtube',
-      answer: `Searching YouTube for "${songQuery}" in your browser.`,
+      answer: 'Playing top trending music directly on YouTube.',
       steps: [
         {
           type: 'reasoning',
           step: 'intent_resolution',
           status: 'completed',
-          title: 'Fast-Path: Song Search',
-          details: `Opened YouTube search for "${songQuery}".`,
+          title: 'Fast-Path: YouTube Music Playback',
+          details: 'Autoplaying top trending music directly in your browser.',
         },
       ],
     };
   }
 
-  // Play <X> on Spotify / Search <X> on Spotify
+  // B. Specific Song / Artist on Spotify
   const spotifyMatch =
     normalized.match(/^(?:play|listen\s+to)\s+(.+?)\s+(?:on|in)\s+spotify$/i) ||
     normalized.match(/^spotify\s+(?:play\s+)?(.+)$/i);
@@ -790,30 +780,48 @@ export async function tryFastPathRoute(userPrompt: string): Promise<FastPathMatc
     }
   }
 
-  // Play <X> on YouTube / Search <X> on YouTube
-  const ytPlayMatch = normalized.match(/^(?:play|listen\s+to|watch)\s+(.+?)(?:\s+on\s+youtube)?$/i);
+  // C. Direct YouTube Song & Video Autoplay
+  // Handles:
+  // - "play <song> on youtube" (e.g. "play softcore on youtube")
+  // - "play <song>" (e.g. "play starboy", "play kalyani", "play bohemian rhapsody")
+  // - "<song> on youtube" (e.g. "kalyani on youtube", "softcore on youtube")
+  // - "listen to <song> [on youtube]"
+  // - "watch <video> [on youtube]"
+  const ytPlayMatch =
+    normalized.match(/^(?:play|listen\s+to|watch|stream|put\s+on)\s+(.+?)(?:\s+on\s+youtube)?$/i) ||
+    normalized.match(/^(.+?)\s+(?:on|in)\s+youtube$/i);
+
   if (ytPlayMatch) {
-    const rawTarget = ytPlayMatch[1].trim();
-    if (rawTarget !== 'music' && rawTarget !== 'pause' && rawTarget !== 'media' && rawTarget !== 'it') {
+    let rawTarget = ytPlayMatch[1].trim();
+    rawTarget = rawTarget.replace(/\s+(?:on|in)\s+youtube$/i, '').trim();
+
+    if (
+      rawTarget &&
+      rawTarget !== 'music' &&
+      rawTarget !== 'pause' &&
+      rawTarget !== 'media' &&
+      rawTarget !== 'it' &&
+      !['status', 'process', 'specs', 'system', 'agent', 'weather', 'time'].includes(rawTarget)
+    ) {
       await runPcController(['search', 'youtube', rawTarget]);
       return {
         matched: true,
         actionName: 'web_search_youtube',
-        answer: `Playing "${rawTarget}" on YouTube in your browser.`,
+        answer: `Playing "${rawTarget}" directly on YouTube in your browser.`,
         steps: [
           {
             type: 'reasoning',
             step: 'intent_resolution',
             status: 'completed',
-            title: 'Fast-Path: YouTube Play',
-            details: `Opened YouTube search for "${rawTarget}".`,
+            title: 'Fast-Path: YouTube Direct Play',
+            details: `Autoplaying "${rawTarget}" on YouTube in your browser.`,
           },
         ],
       };
     }
   }
 
-  // General YouTube searches (e.g. "search youtube for <query>", "search <query> on youtube", "youtube <query>")
+  // D. General YouTube search commands (e.g. "search youtube for <query>", "search <query> on youtube", "youtube <query>")
   const ytGeneralMatch =
     normalized.match(/^(?:search\s+youtube\s+for|youtube)\s+(.+)$/i) ||
     normalized.match(/^(?:search|look\s+up|find)\s+(.+?)\s+(?:on|in)\s+youtube$/i);
@@ -824,14 +832,14 @@ export async function tryFastPathRoute(userPrompt: string): Promise<FastPathMatc
       return {
         matched: true,
         actionName: 'web_search_youtube',
-        answer: `Searching YouTube for "${query}" in your browser.`,
+        answer: `Playing "${query}" directly on YouTube in your browser.`,
         steps: [
           {
             type: 'reasoning',
             step: 'intent_resolution',
             status: 'completed',
-            title: 'Fast-Path: YouTube Search',
-            details: `Opened YouTube search for "${query}".`,
+            title: 'Fast-Path: YouTube Play',
+            details: `Autoplaying "${query}" on YouTube in your browser.`,
           },
         ],
       };

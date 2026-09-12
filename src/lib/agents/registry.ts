@@ -151,7 +151,7 @@ export class AgentRegistry {
     const isBrowser = /\b(browser|chromium|playwright|webpage|page|click|website|websites|site|sites|navigate|url|dom|input field|button|fiverr|upwork|freelancer|remoteok|wellfound|weworkremotely|instagram|insta|whatsapp|telegram|email|gmail|mail|message)\b/i.test(lower);
     
     // 2. System / Windows Desktop & Media
-    const isSystem = /\b(app|application|launch|open|file|folder|directory|command|powershell|cmd|terminal|kill|process|ram|cpu|disk|volume|mute|window|minimize|screenshot|desktop|music|song|spotify|organize|clean|cleanup|git|github|repo|commit|push)\b/i.test(lower);
+    const isSystem = /\b(app|application|launch|open|file|folder|directory|command|powershell|cmd|terminal|kill|process|ram|cpu|disk|volume|mute|window|minimize|screenshot|desktop|music|song|songs|spotify|youtube|yt|play|audio|stream|video|media|organize|clean|cleanup|git|github|repo|commit|push)\b/i.test(lower);
 
     // 3. Career & Interview & Proposal & Job Opportunities
     const isCareer = /\b(job|jobs|career|opportunity|opportunities|interview|star|resume|cv|portfolio|proposal|cover letter|skill gap|skills gap|match|nexus|hiring|role|gig|gigs|freelance|freelancing|remote|linkedin)\b/i.test(lower);
